@@ -26,6 +26,38 @@ type HidInputReportLike = Event & {
 };
 
 const SOURCE = "webhid";
+const OFFICIAL_ORIGIN = "https://ajazz.driveall.cn";
+
+type WebviewCommand = {
+  id: string;
+  type:
+    | "detectOfficialState"
+    | "getCurrentRoute"
+    | "navigateToPath"
+    | "clickByText"
+    | "clickBySelector"
+    | "setInputValue"
+    | "setRangeValue"
+    | "setRadioByLabel"
+    | "setToggleByLabel"
+    | "getVisibleTextSnapshot";
+  path?: string;
+  text?: string;
+  selector?: string;
+  value?: string | number | boolean;
+  timeoutMs?: number;
+};
+
+type CommandResult = {
+  id: string;
+  type: string;
+  success: boolean;
+  message: string;
+  route?: string;
+  matchedText?: string;
+  selector?: string;
+  snapshot?: string[];
+};
 
 function emit(payload: LogPayload): void {
   try {
@@ -39,6 +71,16 @@ function emit(payload: LogPayload): void {
   } catch {
     // Logging must never interfere with the official driver.
   }
+}
+
+function emitCommandResult(result: CommandResult): void {
+  emit({
+    source: "dom",
+    type: "adapter-command",
+    phase: result.success ? "after" : "error",
+    summary: `${result.type}: ${result.message}`,
+    commandResult: result
+  });
 }
 
 function summarizeError(error: unknown): string {
@@ -266,6 +308,170 @@ function installDomLogger(): void {
   emitDom("page-load", { selectedTabText: selectedTabText() });
 }
 
+function installCommandBridge(): void {
+  try {
+    ipcRenderer.on("ak680-command", (_event, command: WebviewCommand) => {
+      void runCommand(command).then(emitCommandResult).catch((error) => {
+        emitCommandResult({
+          id: command?.id ?? crypto.randomUUID(),
+          type: command?.type ?? "unknown",
+          success: false,
+          message: summarizeError(error)
+        });
+      });
+    });
+  } catch {
+    return;
+  }
+}
+
+async function runCommand(command: WebviewCommand): Promise<CommandResult> {
+  if (location.origin !== OFFICIAL_ORIGIN) {
+    return baseResult(command, false, "Command ignored outside official AJAZZ origin");
+  }
+
+  switch (command.type) {
+    case "detectOfficialState":
+      return {
+        ...baseResult(command, true, "Official page visible"),
+        snapshot: visibleTextSnapshot(18)
+      };
+    case "getCurrentRoute":
+      return baseResult(command, true, location.pathname || "/");
+    case "navigateToPath":
+      return navigateToPath(command);
+    case "clickByText":
+      return clickByText(command);
+    case "clickBySelector":
+      return clickBySelector(command);
+    case "setInputValue":
+      return setInputValue(command);
+    case "setRangeValue":
+      return setRangeValue(command);
+    case "setRadioByLabel":
+      return setChoiceByLabel(command, "radio");
+    case "setToggleByLabel":
+      return setChoiceByLabel(command, "toggle");
+    case "getVisibleTextSnapshot":
+      return {
+        ...baseResult(command, true, "Visible text snapshot captured"),
+        snapshot: visibleTextSnapshot(40)
+      };
+    default:
+      return baseResult(command, false, "Unsupported command");
+  }
+}
+
+function baseResult(command: WebviewCommand, success: boolean, message: string): CommandResult {
+  return {
+    id: command.id,
+    type: command.type,
+    success,
+    message,
+    route: location.pathname || "/",
+    selector: command.selector,
+    matchedText: command.text
+  };
+}
+
+function navigateToPath(command: WebviewCommand): CommandResult {
+  const path = command.path ?? "/";
+  if (!["/", "/custom-keys", "/lighting", "/macro", "/performance", "/advanced-keys", "/settings"].includes(path)) {
+    return baseResult(command, false, `Blocked unknown official path ${path}`);
+  }
+  history.pushState(null, "", path);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+  return baseResult(command, true, `Navigated to ${path}`);
+}
+
+function clickByText(command: WebviewCommand): CommandResult {
+  const text = sanitizeText(command.text);
+  if (!text) return baseResult(command, false, "No text provided");
+  const element = findClickableByText(text);
+  if (!element) return baseResult(command, false, `Could not find visible text "${text}"`);
+  element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+  return { ...baseResult(command, true, `Clicked "${text}"`), matchedText: sanitizeText(element.textContent) };
+}
+
+function clickBySelector(command: WebviewCommand): CommandResult {
+  if (!command.selector) return baseResult(command, false, "No selector provided");
+  const element = document.querySelector(command.selector);
+  if (!(element instanceof HTMLElement)) return baseResult(command, false, `Could not find selector ${command.selector}`);
+  element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+  return { ...baseResult(command, true, `Clicked selector ${command.selector}`), matchedText: sanitizeText(element.textContent) };
+}
+
+function setInputValue(command: WebviewCommand): CommandResult {
+  const input = findInput(command);
+  if (!input) return baseResult(command, false, "Could not find input");
+  setNativeValue(input, String(command.value ?? ""));
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+  return baseResult(command, true, "Input value set through official DOM");
+}
+
+function setRangeValue(command: WebviewCommand): CommandResult {
+  const input = findInput(command, "range");
+  if (!input) return baseResult(command, false, "Could not find range input");
+  setNativeValue(input, String(command.value ?? ""));
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+  return baseResult(command, true, "Range value set through official DOM");
+}
+
+function setChoiceByLabel(command: WebviewCommand, mode: "radio" | "toggle"): CommandResult {
+  const text = sanitizeText(command.text);
+  if (!text) return baseResult(command, false, "No label provided");
+  const label = Array.from(document.querySelectorAll("label, button, [role='radio'], [role='switch'], [role='checkbox']")).find((item) => includesText(item, text));
+  if (!(label instanceof HTMLElement)) return baseResult(command, false, `Could not find ${mode} label "${text}"`);
+  label.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+  return { ...baseResult(command, true, `Selected ${text}`), matchedText: sanitizeText(label.textContent) };
+}
+
+function findInput(command: WebviewCommand, type?: string): HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null {
+  if (command.selector) {
+    const selected = document.querySelector(command.selector);
+    if (selected instanceof HTMLInputElement || selected instanceof HTMLTextAreaElement || selected instanceof HTMLSelectElement) return selected;
+  }
+  const text = sanitizeText(command.text);
+  if (text) {
+    const label = Array.from(document.querySelectorAll("label")).find((item) => includesText(item, text));
+    const forId = label?.getAttribute("for");
+    const byFor = forId ? document.getElementById(forId) : null;
+    if (byFor instanceof HTMLInputElement || byFor instanceof HTMLTextAreaElement || byFor instanceof HTMLSelectElement) return byFor;
+  }
+  const selector = type ? `input[type="${type}"]` : "input, textarea, select";
+  const first = document.querySelector(selector);
+  return first instanceof HTMLInputElement || first instanceof HTMLTextAreaElement || first instanceof HTMLSelectElement ? first : null;
+}
+
+function findClickableByText(text: string): HTMLElement | null {
+  const candidates = Array.from(document.querySelectorAll("button, [role='button'], [role='tab'], label, li, div, span, a"));
+  const exact = candidates.find((item) => includesText(item, text, true));
+  const loose = exact ?? candidates.find((item) => includesText(item, text));
+  return loose instanceof HTMLElement ? loose : null;
+}
+
+function includesText(element: Element, text: string, exact = false): boolean {
+  const content = sanitizeText(element.textContent)?.toLowerCase();
+  const needle = text.toLowerCase();
+  return exact ? content === needle : Boolean(content?.includes(needle));
+}
+
+function visibleTextSnapshot(limit: number): string[] {
+  return Array.from(document.querySelectorAll("button, label, [role='tab'], [role='button'], h1, h2, h3, p, span"))
+    .filter((item) => item instanceof HTMLElement && item.offsetParent !== null)
+    .map((item) => sanitizeText(item.textContent))
+    .filter((item): item is string => Boolean(item))
+    .slice(0, limit);
+}
+
+function setNativeValue(element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, value: string): void {
+  const prototype = Object.getPrototypeOf(element);
+  const descriptor = Object.getOwnPropertyDescriptor(prototype, "value");
+  descriptor?.set?.call(element, value);
+}
+
 function emitDom(type: string, extra: LogPayload = {}): void {
   emit({
     source: "dom",
@@ -328,6 +534,7 @@ try {
   wrapNavigatorHid();
   wrapHidDevice();
   installDomLogger();
+  installCommandBridge();
 } catch {
   // The official page should continue even if the overlay logger cannot install.
 }

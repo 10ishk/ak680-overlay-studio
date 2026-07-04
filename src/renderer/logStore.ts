@@ -40,12 +40,30 @@ export type LogState = {
   events: OverlayLogEvent[];
   officialUrl: string;
   session: CaptureSession;
+  actions: OverlayAction[];
+  webviewMode: WebviewMode;
 };
 
 export type CaptureSession = {
   active: boolean;
   startedAt?: string;
   endedAt?: string;
+};
+
+export type WebviewMode = "Docked" | "Compact" | "Hidden";
+
+export type OverlayActionStatus = "pending" | "success" | "failure";
+
+export type OverlayAction = {
+  id: string;
+  timestamp: string;
+  page: string;
+  action: string;
+  targetOfficialPath: string;
+  status: OverlayActionStatus;
+  message: string;
+  matchedText?: string;
+  selector?: string;
 };
 
 export type LogDerivedState = {
@@ -56,7 +74,9 @@ export type LogDerivedState = {
   lastTxPacket: string;
   lastRxPacket: string;
   connectedDeviceStatus: string;
+  officialDriverStatus: string;
   latestDeviceMetadata?: DeviceMetadata;
+  lastOverlayAction?: OverlayAction;
 };
 
 const bridge = getBridge();
@@ -64,6 +84,8 @@ const bridge = getBridge();
 export const initialLogState: LogState = {
   officialUrl: bridge.metadata.officialDriverUrl,
   session: { active: false },
+  actions: [],
+  webviewMode: "Docked",
   events: [
     {
       id: "boot",
@@ -129,6 +151,8 @@ export function appendEvent(state: LogState, event: OverlayLogEvent): LogState {
   return {
     officialUrl: event.url ?? state.officialUrl,
     session: state.session,
+    actions: state.actions,
+    webviewMode: state.webviewMode,
     events: [event, ...state.events]
   };
 }
@@ -173,8 +197,28 @@ export function deriveLogState(state: LogState): LogDerivedState {
     lastTxPacket: packetSummary(lastTx),
     lastRxPacket: packetSummary(lastRx),
     connectedDeviceStatus: connected && (!closed || connected.timestamp > closed.timestamp) ? "Device opened by official webview" : "Waiting for official WebHID session",
-    latestDeviceMetadata
+    officialDriverStatus: state.events.some((event) => event.source === "dom" || event.type.includes("navigate") || event.type.includes("route")) ? "Official loaded" : "Loading official driver",
+    latestDeviceMetadata,
+    lastOverlayAction: state.actions[0]
   };
+}
+
+export function appendOverlayAction(state: LogState, action: Omit<OverlayAction, "id" | "timestamp">): LogState {
+  return {
+    ...state,
+    actions: [
+      {
+        id: crypto.randomUUID(),
+        timestamp: new Date().toISOString(),
+        ...action
+      },
+      ...state.actions
+    ]
+  };
+}
+
+export function setWebviewMode(state: LogState, webviewMode: WebviewMode): LogState {
+  return { ...state, webviewMode };
 }
 
 export function exportLogJson(state: LogState): string {
@@ -190,6 +234,7 @@ export function exportLogJson(state: LogState): string {
       latestDeviceMetadata: derived.latestDeviceMetadata ?? null,
       eventCount: state.events.length,
       markersCount: markers.length,
+      webviewMode: state.webviewMode,
       session: {
         status: state.session.active ? "active" : state.session.endedAt ? "ended" : "not-started",
         active: state.session.active,
@@ -197,6 +242,8 @@ export function exportLogJson(state: LogState): string {
         endedAt: state.session.endedAt ?? null,
         markerCount: markers.filter((event) => isSessionMarker(event)).length
       },
+      overlayActions: [...state.actions].reverse(),
+      adapterCommandResults: [...state.actions].reverse(),
       events: [...state.events].reverse(),
       markers: [...markers].reverse(),
       safetyNote: "Logs may contain device protocol data. Do not commit raw logs publicly unless they are intentionally reviewed, tiny, and redacted."

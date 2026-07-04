@@ -1,7 +1,7 @@
 import type { OfficialNavigator } from "./ajazzRouteAdapter";
 
 export function detectRoute(url = "https://ajazz.driveall.cn/") {
-  return { section: "lighting", url };
+  return { section: "lighting", url, readyText: ["Lighting", "Static Bright", "Snowfall", "Brightness"] };
 }
 
 export function getOfficialPath(): string {
@@ -9,6 +9,10 @@ export function getOfficialPath(): string {
 }
 
 export function goToOfficialPath(navigate: OfficialNavigator): void {
-  // TODO: future DOM control can observe lighting state. Do not click controls or write packets in MVP.
+  // TODO: refine official lighting selectors. Use official DOM controls only; never send packets.
   navigate(getOfficialPath());
+}
+
+export function expectedPageText(): string[] {
+  return ["Lighting", "Static Bright", "Snowfall", "Brightness"];
 }

@@ -104,6 +104,7 @@ const themes = ["Carbon Orange", "Obsidian", "Neon Blue", "Violet", "Frost", "Ma
 const markerExamples = ["SOCD baseline", "SOCD ON", "SOCD OFF", "RT 1.2mm", "Lighting Snowfall", "Macro Save", "Before change", "After change"];
 const lightingEffects = ["Static Bright", "Single Point On", "Single Point Off", "Starry Sky", "Snowfall", "Floral Competition", "Dynamic Breath", "Spectrum Cycle", "Color Fountain", "Ripples Spread", "Endless Flow", "Back and Forth", "Custom"];
 const colors = ["#ff7a1a", "#39a7ff", "#a78bfa", "#9bd67b", "#ffffff", "#ff4d6d"];
+const keyAssignments = ["Esc", "Tab", "Caps Lock", "Left Shift", "Left Ctrl", "Left Alt", "Space", "Backspace", "Enter", "Delete", "Home", "End", "Page Up", "Page Down"];
 
 console.log("AK680 renderer booted");
 
@@ -433,7 +434,34 @@ function SocdPage({ api }: { api: OverlayApi }) {
 
 function KeymapPage({ api }: { api: OverlayApi }) {
   const [selected, setSelected] = useState("ESC");
-  return <div className="stack pageFade"><PageIntro title="Keymap" note="Route-backed keyboard preview. Key-specific selectors are placeholders until official positions are mapped." path={officialPaths.keymap} api={api} /><div className="keyboardCard"><div className="keys">{Array.from({ length: 68 }, (_, index) => <button key={index} className={selected === keyLabel(index) ? "active" : ""} onClick={() => setSelected(keyLabel(index))}>{keyLabel(index)}</button>)}</div><div className="inspector">Selected {selected}. <button onClick={() => api.runOverlayAction({ page: "Keymap", action: `Open selected key ${selected}`, targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: selected })}>Open selected key in Official Driver</button></div></div></div>;
+  const [assignment, setAssignment] = useState("Backspace");
+  const applyAssignment = async () => {
+    await api.runOverlayAction({ page: "Keymap", action: `Select ${selected}`, targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: selected });
+    const inputResult = await api.runOverlayAction({ page: "Keymap", action: `Search assignment ${assignment}`, targetOfficialPath: officialPaths.keymap, commandType: "setInputValue", text: "Key", value: assignment });
+    if (!inputResult.success) {
+      await api.runOverlayAction({ page: "Keymap", action: `Find assignment ${assignment}`, targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: assignment });
+      return;
+    }
+    await api.runOverlayAction({ page: "Keymap", action: `Apply ${assignment} to ${selected}`, targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: assignment });
+  };
+  return (
+    <div className="stack pageFade">
+      <PageIntro title="Keymap" note="Pick a key, choose a common mapping, let the official driver apply it." path={officialPaths.keymap} api={api} />
+      <div className="keymapLayout">
+        <section className="keyboardCard">
+          <div className="keymapHeader"><span>Selected key</span><strong>{selected}</strong></div>
+          <div className="keys">{Array.from({ length: 68 }, (_, index) => <button key={index} className={selected === keyLabel(index) ? "active" : ""} onClick={() => setSelected(keyLabel(index))}>{keyLabel(index)}</button>)}</div>
+        </section>
+        <section className="panel assignmentPanel">
+          <span>Assignment</span>
+          <strong>{selected} {"->"} {assignment}</strong>
+          <select value={assignment} onChange={(event) => setAssignment(event.target.value)}>{keyAssignments.map((item) => <option key={item}>{item}</option>)}</select>
+          <div className="assignmentGrid">{keyAssignments.slice(0, 8).map((item) => <button className={assignment === item ? "active" : ""} key={item} onClick={() => setAssignment(item)}>{item}</button>)}</div>
+          <div className="actions"><button className="primary" onClick={applyAssignment}>Apply Mapping</button><button onClick={() => api.openOfficialPath(officialPaths.keymap, true)}>Official View</button></div>
+        </section>
+      </div>
+    </div>
+  );
 }
 
 function MacrosPage({ api }: { api: OverlayApi }) {

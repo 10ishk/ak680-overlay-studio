@@ -548,10 +548,10 @@ async function waitForSelector(command: WebviewCommand): Promise<CommandResult> 
 async function setRangeByNearbyLabel(command: WebviewCommand): Promise<CommandResult> {
   const labels = [command.text, command.nearText].filter((item): item is string => Boolean(item));
   let matchedLabel = "";
-  let range: HTMLInputElement | null = null;
+  let range: HTMLElement | null = null;
   await retryUntil(() => {
     for (const label of labels) {
-      range = findNearbyRange(label);
+      range = findNearbyRangeControl(label);
       if (range) {
         matchedLabel = label;
         return true;
@@ -559,11 +559,11 @@ async function setRangeByNearbyLabel(command: WebviewCommand): Promise<CommandRe
     }
     return false;
   }, command.timeoutMs);
-  const targetRange = range as HTMLInputElement | null;
+  const targetRange = range as HTMLElement | null;
   if (targetRange) {
     targetRange.scrollIntoView({ block: "center", inline: "center" });
-    setDomValue(targetRange, String(command.value ?? ""));
-    return { ...baseResult(command, true, `Set range near "${matchedLabel}"`), matchedText: matchedLabel, selector: "input[type='range']" };
+    setRangeControlValue(targetRange, Number(command.value ?? 0));
+    return { ...baseResult(command, true, `Set range near "${matchedLabel}"`), matchedText: matchedLabel, selector: rangeSelectorFor(targetRange) };
   }
   return baseResult(command, false, `Could not find nearby range for ${labels.join(" / ") || "label"}`);
 }
@@ -688,8 +688,87 @@ function isNativeControl(element: HTMLElement): boolean {
   return tag === "button" || tag === "a" || tag === "input" || tag === "select" || tag === "textarea";
 }
 
-function findNearbyRange(text: string): HTMLInputElement | null {
-  return findInputNearText(text, "range") as HTMLInputElement | null;
+function findNearbyRangeControl(text: string): HTMLElement | null {
+  const nativeRange = findInputNearText(text, "range") as HTMLInputElement | null;
+  if (nativeRange) return nativeRange;
+
+  const sliderSelector = "[role='slider'], [aria-valuemin][aria-valuemax], .slider, .range, .el-slider, .ant-slider";
+  const anchor = findByText(text);
+  const scopes = [
+    anchor?.closest("section, article, li, form, fieldset, .card, .item, .row, div"),
+    anchor?.parentElement,
+    anchor?.nextElementSibling,
+    document.body
+  ].filter((item): item is Element => Boolean(item));
+
+  for (const scope of scopes) {
+    const slider = bestSliderCandidate(scope, sliderSelector);
+    if (slider) return slider;
+  }
+  return null;
+}
+
+function bestSliderCandidate(scope: Element, selector: string): HTMLElement | null {
+  const candidates = Array.from(scope.querySelectorAll(selector))
+    .filter((item): item is HTMLElement => item instanceof HTMLElement && isVisibleEnabled(item))
+    .map((element) => {
+      const rect = element.getBoundingClientRect();
+      const area = rect.width * rect.height;
+      let score = element.getAttribute("role") === "slider" ? 90 : 35;
+      if (element.hasAttribute("aria-valuemin") && element.hasAttribute("aria-valuemax")) score += 60;
+      if (element instanceof HTMLInputElement && element.type === "range") score += 100;
+      if (/slider|range/i.test(element.className)) score += 20;
+      score += Math.min(rect.width / Math.max(rect.height, 1), 40);
+      score -= Math.min(area / 18000, 25);
+      return { element, score };
+    })
+    .sort((a, b) => b.score - a.score);
+  return candidates[0]?.element ?? null;
+}
+
+function setRangeControlValue(element: HTMLElement, rawValue: number): void {
+  if (element instanceof HTMLInputElement && element.type === "range") {
+    setDomValue(element, String(rawValue));
+    return;
+  }
+
+  const rect = element.getBoundingClientRect();
+  const min = numericAttribute(element, "aria-valuemin", 0);
+  const max = numericAttribute(element, "aria-valuemax", 100);
+  const clamped = Math.min(Math.max(rawValue, min), max);
+  const percent = max > min ? (clamped - min) / (max - min) : clamped / 100;
+  const clientX = rect.left + Math.max(1, Math.min(rect.width - 1, rect.width * percent));
+  const clientY = rect.top + rect.height / 2;
+
+  try {
+    element.focus({ preventScroll: true });
+  } catch {
+    element.focus();
+  }
+
+  for (const type of ["pointerdown", "mousedown", "pointermove", "mousemove", "pointerup", "mouseup", "click"]) {
+    const eventInit = { bubbles: true, cancelable: true, view: window, clientX, clientY };
+    if (type.startsWith("pointer") && typeof PointerEvent === "function") {
+      element.dispatchEvent(new PointerEvent(type, { ...eventInit, pointerId: 1, pointerType: "mouse", isPrimary: true }));
+    } else {
+      element.dispatchEvent(new MouseEvent(type, eventInit));
+    }
+  }
+
+  element.dispatchEvent(new Event("input", { bubbles: true }));
+  element.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function numericAttribute(element: HTMLElement, name: string, fallback: number): number {
+  const value = Number(element.getAttribute(name));
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function rangeSelectorFor(element: HTMLElement): string {
+  if (element instanceof HTMLInputElement && element.type === "range") return "input[type='range']";
+  if (element.getAttribute("role") === "slider") return "[role='slider']";
+  if (element.hasAttribute("aria-valuemin") && element.hasAttribute("aria-valuemax")) return "[aria-valuemin][aria-valuemax]";
+  return ".slider";
 }
 
 function findInputNearText(text: string, type?: string): HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null {

@@ -109,6 +109,7 @@ const macroSlots = ["Game Push", "Layer Tap", "Media Stack", "Rapid Utility"];
 const macroTargets = ["F1", "F2", "F3", "F4", "Ins", "Del", "Home", "End"];
 const advancedModules = ["RS / Snappy", "DKS", "MT", "TGL"];
 const socdModes = ["Neutral", "Last Input Priority", "Absolute Priority", "Off"];
+const returnRates = ["125Hz", "250Hz", "500Hz", "1000Hz"];
 
 console.log("AK680 renderer booted");
 
@@ -557,7 +558,44 @@ function MacrosPage({ api }: { api: OverlayApi }) {
 }
 
 function SettingsPage(props: { theme: string; setTheme: (theme: string) => void; api: OverlayApi; exportLogs: () => void; clearLogs: () => void }) {
-  return <div className="stack pageFade"><PageIntro title="Settings" note="App preferences and safe official settings shortcuts." path={officialPaths.settings} api={props.api} /><div className="grid two"><section className="panel"><span>Theme</span><select value={props.theme} onChange={(event) => props.setTheme(event.target.value)}>{themes.map((item) => <option key={item}>{item}</option>)}</select></section>{["Stability Mode", "Adaptive Dynamic Calibration", "Return Rate"].map((text) => <button className="panel actionPanel" key={text} onClick={() => props.api.runOverlayAction({ page: "Settings", action: text, targetOfficialPath: officialPaths.settings, commandType: "clickByText", text })}><span>Official shortcut</span><strong>{text}</strong><p>Open/click if visible</p></button>)}<section className="panel"><span>Destructive setting</span><strong>Reset all keyboard settings</strong><p>Never triggered automatically. Opens official settings only.</p><button onClick={() => props.api.openOfficialPath(officialPaths.settings, true)}>Open in Official Driver</button></section><section className="panel"><span>Diagnostics</span><strong>Export or clear</strong><div className="actions"><button onClick={props.exportLogs}>Export Diagnostics</button><button onClick={props.clearLogs}>Clear Activity</button></div></section></div><AdapterInspector api={props.api} /></div>;
+  const [returnRate, setReturnRate] = useState("1000Hz");
+  const [stability, setStability] = useState(true);
+  const [calibration, setCalibration] = useState(true);
+  const applyDeviceSettings = async () => {
+    await props.api.runOverlayAction({ page: "Settings", action: `Return Rate ${returnRate}`, targetOfficialPath: officialPaths.settings, commandType: "clickByText", text: "Return Rate" });
+    await props.api.runOverlayAction({ page: "Settings", action: `Select ${returnRate}`, targetOfficialPath: officialPaths.settings, commandType: "clickByText", text: returnRate });
+    if (stability) await props.api.runOverlayAction({ page: "Settings", action: "Enable Stability Mode", targetOfficialPath: officialPaths.settings, commandType: "setToggleByLabel", text: "Stability Mode" });
+    if (calibration) await props.api.runOverlayAction({ page: "Settings", action: "Enable Adaptive Dynamic Calibration", targetOfficialPath: officialPaths.settings, commandType: "setToggleByLabel", text: "Adaptive Dynamic Calibration" });
+  };
+  return (
+    <div className="stack pageFade">
+      <PageIntro title="Settings" note="Device preferences and app options." path={officialPaths.settings} api={props.api} />
+      <div className="settingsWorkspace">
+        <section className="panel deviceSettingsPanel">
+          <span>Device</span>
+          <strong>{returnRate}</strong>
+          <div className="rateGrid">{returnRates.map((item) => <button className={returnRate === item ? "active" : ""} key={item} onClick={() => setReturnRate(item)}>{item}</button>)}</div>
+          <label className="toggleRow"><input type="checkbox" checked={stability} onChange={(event) => setStability(event.target.checked)} />Stability Mode</label>
+          <label className="toggleRow"><input type="checkbox" checked={calibration} onChange={(event) => setCalibration(event.target.checked)} />Adaptive Calibration</label>
+          <button className="primary" onClick={applyDeviceSettings}>Apply Device Settings</button>
+        </section>
+        <section className="panel appSettingsPanel">
+          <span>App</span>
+          <strong>Theme and diagnostics</strong>
+          <label className="fieldLabel">Theme<select value={props.theme} onChange={(event) => props.setTheme(event.target.value)}>{themes.map((item) => <option key={item}>{item}</option>)}</select></label>
+          <div className="actions"><button onClick={props.exportLogs}>Export Diagnostics</button><button onClick={props.clearLogs}>Clear Activity</button></div>
+          <button onClick={() => props.api.openOfficialPath(officialPaths.settings, true)}>Open Official Settings</button>
+        </section>
+        <section className="panel resetPanel">
+          <span>Reset</span>
+          <strong>Keyboard reset</strong>
+          <p>Opens the official reset area only. The final reset action remains inside the official driver.</p>
+          <button onClick={() => props.api.runOverlayAction({ page: "Settings", action: "Open Reset Settings", targetOfficialPath: officialPaths.settings, commandType: "clickByText", text: "Reset" })}>Open Reset Area</button>
+        </section>
+      </div>
+      <AdapterInspector api={props.api} />
+    </div>
+  );
 }
 
 function RouteCards({ page, path, api, cards }: { page: Page; path: OfficialPath; api: OverlayApi; cards: string[] }) {

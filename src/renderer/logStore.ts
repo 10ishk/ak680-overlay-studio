@@ -64,6 +64,7 @@ export type OverlayAction = {
   message: string;
   matchedText?: string;
   selector?: string;
+  details?: unknown;
 };
 
 export type LogDerivedState = {
@@ -77,6 +78,7 @@ export type LogDerivedState = {
   officialDriverStatus: string;
   latestDeviceMetadata?: DeviceMetadata;
   lastOverlayAction?: OverlayAction;
+  deviceConnectStatus: string;
 };
 
 const bridge = getBridge();
@@ -199,7 +201,8 @@ export function deriveLogState(state: LogState): LogDerivedState {
     connectedDeviceStatus: connected && (!closed || connected.timestamp > closed.timestamp) ? "Device opened by official webview" : "Waiting for official WebHID session",
     officialDriverStatus: state.events.some((event) => event.source === "dom" || event.type.includes("navigate") || event.type.includes("route")) ? "Official loaded" : "Loading official driver",
     latestDeviceMetadata,
-    lastOverlayAction: state.actions[0]
+    lastOverlayAction: state.actions[0],
+    deviceConnectStatus: deviceConnectStatus(state.events)
   };
 }
 
@@ -231,6 +234,8 @@ export function exportLogJson(state: LogState): string {
       exportedAt: new Date().toISOString(),
       officialPageUrl: state.officialUrl,
       currentRoute: derived.currentRoute,
+      deviceConnectStatus: derived.deviceConnectStatus,
+      officialDriverStatus: derived.officialDriverStatus,
       latestDeviceMetadata: derived.latestDeviceMetadata ?? null,
       eventCount: state.events.length,
       markersCount: markers.length,
@@ -253,6 +258,15 @@ export function exportLogJson(state: LogState): string {
   );
 }
 
+function deviceConnectStatus(events: OverlayLogEvent[]): string {
+  const text = events.map((event) => `${event.summary} ${event.text ?? ""} ${event.productName ?? ""}`).join(" ").toLowerCase();
+  if (text.includes("wired connection") || text.includes("connected")) return "Connected";
+  if (events.some((event) => event.vendorId === 3141 && event.productId === 32956)) return "Device permission remembered";
+  if (text.includes("permission")) return "Permission needed";
+  if (events.some((event) => event.source === "dom")) return "Official loaded";
+  return "Unknown";
+}
+
 function isSessionMarker(event: OverlayLogEvent): boolean {
   return event.source === "marker" && (event.markerLabel === "Session started" || event.markerLabel === "Session stopped");
 }
@@ -268,7 +282,7 @@ export function routeFromUrl(url: string): string {
 
 export function timestampFilename(): string {
   const stamp = new Date().toISOString().replace(/[-:]/g, "").replace("T", "-").slice(0, 15);
-  return `ak680-overlay-log-${stamp}.json`;
+  return `ak680-overlay-diagnostics-${stamp}.json`;
 }
 
 function buildSummary(source: LogSource, type: string, method?: string, phase?: string, reportId?: number, length?: number, hex?: string, markerLabel?: string, error?: string): string {

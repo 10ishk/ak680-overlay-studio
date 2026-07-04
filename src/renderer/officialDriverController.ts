@@ -26,7 +26,17 @@ export type WebviewCommandType =
   | "setRangeValue"
   | "setRadioByLabel"
   | "setToggleByLabel"
-  | "getVisibleTextSnapshot";
+  | "getVisibleTextSnapshot"
+  | "snapshotVisibleButtons"
+  | "snapshotVisibleInputs"
+  | "snapshotVisibleTabs"
+  | "snapshotPageTextSummary"
+  | "snapshotActiveElements"
+  | "waitForText"
+  | "waitForSelector"
+  | "setRangeByNearbyLabel"
+  | "clickButtonNearText"
+  | "getRememberedHidDevices";
 
 export type WebviewCommand = {
   id: string;
@@ -35,18 +45,25 @@ export type WebviewCommand = {
   text?: string;
   selector?: string;
   value?: string | number | boolean;
+  tag?: string;
+  nearText?: string;
   timeoutMs?: number;
 };
 
 export type WebviewCommandResult = {
   id: string;
+  ok: boolean;
   type: WebviewCommandType;
+  command: WebviewCommandType;
+  commandId: string;
+  timestamp: string;
   success: boolean;
   message: string;
   route?: string;
   matchedText?: string;
   selector?: string;
   snapshot?: string[];
+  details?: unknown;
 };
 
 const allowedPaths = new Set<string>(Object.values(officialPaths));
@@ -89,13 +106,18 @@ export function commandResultFromPayload(payload: unknown): WebviewCommandResult
   if (typeof commandResult.id !== "string" || typeof commandResult.type !== "string" || typeof commandResult.success !== "boolean") return undefined;
   return {
     id: commandResult.id,
+    ok: commandResult.ok === true || commandResult.success === true,
     type: commandResult.type as WebviewCommandType,
+    command: (typeof commandResult.command === "string" ? commandResult.command : commandResult.type) as WebviewCommandType,
+    commandId: typeof commandResult.commandId === "string" ? commandResult.commandId : commandResult.id,
+    timestamp: typeof commandResult.timestamp === "string" ? commandResult.timestamp : new Date().toISOString(),
     success: commandResult.success,
     message: typeof commandResult.message === "string" ? commandResult.message : "",
     route: typeof commandResult.route === "string" ? commandResult.route : undefined,
     matchedText: typeof commandResult.matchedText === "string" ? commandResult.matchedText : undefined,
     selector: typeof commandResult.selector === "string" ? commandResult.selector : undefined,
-    snapshot: Array.isArray(commandResult.snapshot) ? commandResult.snapshot.filter((item): item is string => typeof item === "string") : undefined
+    snapshot: Array.isArray(commandResult.snapshot) ? commandResult.snapshot.filter((item): item is string => typeof item === "string") : undefined,
+    details: commandResult.details
   };
 }
 

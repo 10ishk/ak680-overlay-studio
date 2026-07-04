@@ -8,7 +8,7 @@ The embedded official driver remains responsible for actual keyboard communicati
 
 Current status: overlay-control MVP.
 
-The app has pivoted from logger-first to control-first. Logging remains available for future native development and debugging, but the primary workflow is now:
+The app has pivoted from logger-first to control-first. Diagnostics remain available for future native development and adapter tuning, but the primary workflow is now:
 
 1. Open the app.
 2. Connect through the official AJAZZ webview.
@@ -41,8 +41,9 @@ npm run lint
 
 1. Plug in the AJAZZ AK680 V2.
 2. Click **Connect AK680 V2** on Dashboard.
-3. Approve the browser/WebHID permission prompt if shown.
-4. If the official page needs manual confirmation, use **Official View: Docked** and complete the official flow.
+3. The overlay loads the official route, detects official page state, checks remembered WebHID devices from the official context, and tries a visible official **Connect** button after the user presses our button.
+4. Approve the browser/WebHID permission prompt if shown.
+5. If the official page needs manual confirmation, use **Official View: Docked** and complete the official flow.
 
 Connection status is derived from observed WebHID events, official DOM activity, route state, and known AK680 V2 metadata where available. The app does not fake connected status.
 
@@ -65,19 +66,33 @@ The webview remains mounted so official app state and WebHID connection can stay
 
 DOM selectors may need adjustment if the AJAZZ site changes. When a control is not found, the action history reports a failure and the user can fall back to the visible official driver.
 
-## Logging and Export
+## Adapter Inspector
 
-Logging is secondary but still active. The guest preload observes:
+The **Adapter Inspector** is available from **Official Driver** and **Settings**. It provides developer-only DOM discovery buttons:
+
+- Snapshot visible buttons
+- Snapshot visible inputs
+- Snapshot visible tabs
+- Snapshot page text summary
+- Snapshot selected/active elements
+
+Snapshots include small structured records such as tag, role, text, aria-label, title, class summary, safe input value, checked/selected state, and bounding boxes. The inspector does not collect cookies, localStorage, sessionStorage, auth headers, or full HTML. Snapshots are not auto-exported and should not be committed.
+
+## Diagnostics and Export
+
+Diagnostics are secondary but still active. The guest preload observes:
 
 - WebHID request/get device calls
 - HID open/close
 - sendReport, sendFeatureReport, receiveFeatureReport
 - inputreport events
 - DOM clicks, inputs, changes, and route changes
-- overlay adapter command results
+- overlay adapter command results and normalized success/failure details
 - host WebHID permission events
 
-Exports include overlay action history, webview mode, adapter command results, capture session data, markers, and HID/DOM logs. Logs are downloaded only when you click **Export JSON** and are not uploaded or written automatically to the repo.
+Exports include overlay action history, adapter command results, device/connect status, webview visibility mode, official route, capture session data, markers, and HID/DOM activity logs. Diagnostics are downloaded only when you click **Export Diagnostics** and are not uploaded or written automatically to the repo.
+
+Export filenames use `ak680-overlay-diagnostics-YYYYMMDD-HHMMSS.json`.
 
 Do not commit raw logs, private traces, serial numbers, tokens, secrets, cookies, local paths, browser cache/session data, generated build artifacts, downloaded AJAZZ bundles, or official screenshots.
 
@@ -92,6 +107,14 @@ Do not commit raw logs, private traces, serial numbers, tokens, secrets, cookies
 - No generic packet registry.
 - No SOCD packet automation.
 - No copied AJAZZ assets or screenshots.
+
+## Current Limitations
+
+- Live AJAZZ DOM selectors may need tuning as the official site changes.
+- Some controls fall back to opening the official view when visible text or nearby sliders are not found.
+- Recalibrate may open an official modal; the overlay does not click Save Calibration or Clear Calibration automatically.
+- SOCD is route/find-only for now and does not configure SOCD settings.
+- Keymap selected-key clicks are best-effort and may be ambiguous until official key positions are mapped.
 
 ## Enjoy
 

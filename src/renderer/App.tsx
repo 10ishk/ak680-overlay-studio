@@ -73,6 +73,8 @@ type RunActionOptions = {
   text?: string;
   selector?: string;
   value?: string | number | boolean;
+  tag?: string;
+  nearText?: string;
 };
 
 const bridge = getBridge();
@@ -125,6 +127,8 @@ function App() {
           message: result.message,
           matchedText: result.matchedText,
           selector: result.selector
+          ,
+          details: result.details
         }));
         setToast(result.success ? `Applied: ${pending.action}` : result.message);
         pending.resolve(result);
@@ -160,7 +164,9 @@ function App() {
       path: options.commandType === "navigateToPath" ? options.targetOfficialPath : undefined,
       text: options.text,
       selector: options.selector,
-      value: options.value
+      value: options.value,
+      tag: options.tag,
+      nearText: options.nearText
     });
     setLogState((state) => appendOverlayAction(state, {
       page: options.page,
@@ -174,6 +180,10 @@ function App() {
         pendingCommands.current.delete(command.id);
         const result: WebviewCommandResult = {
           id: command.id,
+          ok: false,
+          command: command.type,
+          commandId: command.id,
+          timestamp: new Date().toISOString(),
           type: command.type,
           success: false,
           message: "Official webview did not respond before timeout",
@@ -227,7 +237,7 @@ function App() {
                 : page === "Settings"
                   ? <SettingsPage theme={theme} setTheme={setThemePersisted} api={api} exportLogs={exportLogs} clearLogs={clearLogs} />
                   : page === "Official Driver"
-                    ? <OfficialDriverPanel mode={logState.webviewMode} setMode={changeWebviewMode} />
+                    ? <OfficialDriverPanel mode={logState.webviewMode} setMode={changeWebviewMode} api={api} />
                     : <LogsPage events={logState.events} actions={logState.actions} marker={marker} setMarker={setMarker} addMarker={addMarker} exportLogs={exportLogs} clearLogs={clearLogs} derived={derived} />;
 
   return (
@@ -265,17 +275,17 @@ function Dashboard(props: { api: OverlayApi; derived: ReturnType<typeof deriveLo
   return (
     <div className="stack pageFade">
       <section className="hero dashboardHero">
-        <div><span className="eyebrow">Keyboard control</span><h2>Configure AK680 V2 through the official driver, from a cleaner overlay.</h2><p>The embedded AJAZZ driver still owns WebHID. This UI navigates and operates its visible controls where selectors are found.</p></div>
-        <div className="heroActions"><button className="primary" onClick={() => props.api.runOverlayAction({ page: "Dashboard", action: "Connect AK680 V2", targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: "Connect" })}>Connect AK680 V2</button><button onClick={() => props.api.openOfficialPath(officialPaths.keymap, true)}>Open Official Connect</button></div>
+        <div><span className="eyebrow">Overlay controls</span><h2>Configure AK680 V2 through the official driver, from a cleaner overlay.</h2><p>Uses the official driver safely behind the scenes. Open official view if a permission prompt or adapter result needs manual help.</p></div>
+        <div className="heroActions"><button className="primary" onClick={async () => { await props.api.runOverlayAction({ page: "Dashboard", action: "Detect official driver", targetOfficialPath: officialPaths.keymap, commandType: "detectOfficialState" }); await props.api.runOverlayAction({ page: "Dashboard", action: "Check remembered AK680 permission", targetOfficialPath: officialPaths.keymap, commandType: "getRememberedHidDevices" }); await props.api.runOverlayAction({ page: "Dashboard", action: "Connect AK680 V2", targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: "Connect", tag: "button" }); }}>Connect AK680 V2</button><button onClick={() => props.api.openOfficialPath(officialPaths.keymap, true)}>Open Official Connect</button></div>
       </section>
       <div className="grid three">
-        <Metric title="AK680 V2 connection" value={props.derived.connectedDeviceStatus} note="Best available observed signal" />
+        <Metric title="AK680 V2 connection" value={props.derived.deviceConnectStatus} note="Best available observed signal" />
         <Metric title="Official driver" value={props.derived.officialDriverStatus} note="Embedded webview remains mounted" />
         <Metric title="WebHID/device" value={props.derived.latestDeviceMetadata ? "Device selected" : "Permission may be needed"} note="VID 3141 / PID 32956 target" />
         <Metric title="Current official page" value={props.derived.currentRoute} note="Route-level adapter state" />
         <Metric title="Active profile" value="Default" note="Profile selection placeholder" />
         <Metric title="Last applied action" value={props.derived.lastOverlayAction?.message ?? "No overlay action yet"} note={props.derived.lastOverlayAction?.action ?? "Use a control page"} />
-        <Metric title="Capture/log status" value={`${props.derived.eventCount} logs`} note={`${props.derived.markersCount} markers, logging secondary`} />
+        <Metric title="Diagnostics status" value={`${props.derived.eventCount} events`} note={`${props.derived.markersCount} markers, logging secondary`} />
       </div>
       <div className="actions">
         <button onClick={() => props.api.openOfficialPath(officialPaths.lighting)}>Lighting</button>
@@ -287,6 +297,7 @@ function Dashboard(props: { api: OverlayApi; derived: ReturnType<typeof deriveLo
         <button onClick={props.session.active ? props.stopSession : props.startSession}>{props.session.active ? "Stop Capture" : "Start Capture"}</button>
       </div>
       <ActionTips items={connectionText} />
+      <div className="notice">If a device picker appears: click the official connect button if shown, select AJAZZ AK680 V2, then allow permission.</div>
     </div>
   );
 }
@@ -299,10 +310,10 @@ function LightingPage({ api, derived }: { api: OverlayApi; derived: ReturnType<t
     <div className="stack pageFade">
       <PageIntro title="Lighting" note="Effect and color controls use official DOM actions where matching controls are visible." path={officialPaths.lighting} api={api} />
       <div className="grid three"><Metric title="Official connection" value={derived.connectedDeviceStatus} note="Connect through official webview" /><Metric title="Official route" value={derived.currentRoute} note="/lighting expected" /><Metric title="Last lighting action" value={derived.lastOverlayAction?.message ?? "Idle"} note={derived.lastOverlayAction?.action ?? "Select an effect"} /></div>
-      <div className="effectGrid">{lightingEffects.map((effect) => <button key={effect} className="effectCard" onClick={() => api.runOverlayAction({ page: "Lighting", action: `Lighting effect ${effect}`, targetOfficialPath: officialPaths.lighting, commandType: "clickByText", text: effect })}><strong>{effect}</strong><span>Apply through official control</span></button>)}</div>
+      <div className="effectGrid">{lightingEffects.map((effect) => <button key={effect} className="effectCard" onClick={async () => { await api.runOverlayAction({ page: "Lighting", action: "Wait for Lighting page", targetOfficialPath: officialPaths.lighting, commandType: "waitForText", text: "Lighting" }); await api.runOverlayAction({ page: "Lighting", action: `Lighting effect ${effect}`, targetOfficialPath: officialPaths.lighting, commandType: "clickByText", text: effect }); }}><strong>{effect}</strong><span>Applied through official web driver</span></button>)}</div>
       <div className="grid two">
-        <ControlPanel title="Brightness" value={brightness} setValue={setBrightness} onApply={(value) => api.runOverlayAction({ page: "Lighting", action: `Brightness ${value}`, targetOfficialPath: officialPaths.lighting, commandType: "setRangeValue", text: "Brightness", value })} />
-        <ControlPanel title="Speed" value={speed} setValue={setSpeed} onApply={(value) => api.runOverlayAction({ page: "Lighting", action: `Speed ${value}`, targetOfficialPath: officialPaths.lighting, commandType: "setRangeValue", text: "Speed", value })} />
+        <ControlPanel title="Brightness" value={brightness} setValue={setBrightness} onApply={(value) => api.runOverlayAction({ page: "Lighting", action: `Lighting Brightness ${value}`, targetOfficialPath: officialPaths.lighting, commandType: "setRangeByNearbyLabel", text: "Lighting Brightness", nearText: "Brightness", value })} />
+        <ControlPanel title="Speed" value={speed} setValue={setSpeed} onApply={(value) => api.runOverlayAction({ page: "Lighting", action: `Lighting Speed ${value}`, targetOfficialPath: officialPaths.lighting, commandType: "setRangeByNearbyLabel", text: "Lighting Speed", nearText: "Speed", value })} />
       </div>
       <section className="panel"><span>Color mode</span><div className="segmented">{["RGB", "Monochrome"].map((item) => <button className={mode === item ? "active" : ""} key={item} onClick={() => { setMode(item); void api.runOverlayAction({ page: "Lighting", action: `Color mode ${item}`, targetOfficialPath: officialPaths.lighting, commandType: "clickByText", text: item }); }}>{item}</button>)}</div><div className="swatches">{colors.map((color) => <button key={color} style={{ background: color }} title={color} onClick={() => api.runOverlayAction({ page: "Lighting", action: `Color ${color}`, targetOfficialPath: officialPaths.lighting, commandType: "clickByText", text: color })} />)}</div></section>
     </div>
@@ -316,13 +327,13 @@ function PerformancePage({ api, derived }: { api: OverlayApi; derived: ReturnTyp
   return (
     <div className="stack pageFade">
       <PageIntro title="Performance" note="Presets and tuning controls route through official performance UI when visible." path={officialPaths.performance} api={api} />
-      <div className="grid three">{["Custom", "Office", "Beginner", "Game"].map((preset) => <button className="panel actionPanel" key={preset} onClick={() => api.runOverlayAction({ page: "Performance", action: `Preset ${preset}`, targetOfficialPath: officialPaths.performance, commandType: "clickByText", text: preset })}><span>Preset</span><strong>{preset}</strong><p>Apply via official driver</p></button>)}</div>
+      <div className="grid three">{["Custom", "Office Mode", "Beginner Mode", "Game Mode"].map((preset) => <button className="panel actionPanel" key={preset} onClick={async () => { await api.runOverlayAction({ page: "Performance", action: "Wait for Performance page", targetOfficialPath: officialPaths.performance, commandType: "waitForText", text: "Performance" }); await api.runOverlayAction({ page: "Performance", action: `Preset ${preset}`, targetOfficialPath: officialPaths.performance, commandType: "clickByText", text: preset }); }}><span>Preset</span><strong>{preset}</strong><p>Applied through official web driver</p></button>)}</div>
       <div className="tabs">{["Normal Mode", "Advanced Settings", "Recalibrate"].map((tab) => <button key={tab} onClick={() => api.runOverlayAction({ page: "Performance", action: `Open ${tab}`, targetOfficialPath: officialPaths.performance, commandType: "clickByText", text: tab })}>{tab}</button>)}</div>
       <div className="grid two">
-        <ControlPanel title="Trigger Distance" value={trigger} setValue={setTrigger} onApply={(value) => api.runOverlayAction({ page: "Performance", action: `Trigger Distance ${value}`, targetOfficialPath: officialPaths.performance, commandType: "setRangeValue", text: "Trigger", value })} />
+        <ControlPanel title="Trigger Distance" value={trigger} setValue={setTrigger} onApply={(value) => api.runOverlayAction({ page: "Performance", action: `Trigger Distance ${value}`, targetOfficialPath: officialPaths.performance, commandType: "setRangeByNearbyLabel", text: "Trigger Distance", nearText: "Trigger", value })} />
         <section className="panel"><span>Fast Trigger</span><strong>{derived.lastOverlayAction?.action === "Fast Trigger" ? "Requested" : "Ready"}</strong><button onClick={() => api.runOverlayAction({ page: "Performance", action: "Fast Trigger", targetOfficialPath: officialPaths.performance, commandType: "setToggleByLabel", text: "Fast Trigger" })}>Toggle in Official Driver</button></section>
-        <ControlPanel title="Dead Zone Top" value={deadTop} setValue={setDeadTop} onApply={(value) => api.runOverlayAction({ page: "Performance", action: `Dead Zone Top ${value}`, targetOfficialPath: officialPaths.performance, commandType: "setRangeValue", text: "Dead Zone", value })} />
-        <ControlPanel title="Dead Zone Bottom" value={deadBottom} setValue={setDeadBottom} onApply={(value) => api.runOverlayAction({ page: "Performance", action: `Dead Zone Bottom ${value}`, targetOfficialPath: officialPaths.performance, commandType: "setRangeValue", text: "Dead Zone", value })} />
+        <ControlPanel title="Top Dead Zone" value={deadTop} setValue={setDeadTop} onApply={(value) => api.runOverlayAction({ page: "Performance", action: `Top Dead Zone ${value}`, targetOfficialPath: officialPaths.performance, commandType: "setRangeByNearbyLabel", text: "Top Dead Zone", nearText: "Dead Zone", value })} />
+        <ControlPanel title="Bottom Dead Zone" value={deadBottom} setValue={setDeadBottom} onApply={(value) => api.runOverlayAction({ page: "Performance", action: `Bottom Dead Zone ${value}`, targetOfficialPath: officialPaths.performance, commandType: "setRangeByNearbyLabel", text: "Bottom Dead Zone", nearText: "Dead Zone", value })} />
       </div>
       <button className="primary" onClick={() => api.runOverlayAction({ page: "Performance", action: "Recalibrate", targetOfficialPath: officialPaths.performance, commandType: "clickByText", text: "Recalibrate" })}>Recalibrate in Official Driver</button>
     </div>
@@ -347,7 +358,7 @@ function MacrosPage({ api }: { api: OverlayApi }) {
 }
 
 function SettingsPage(props: { theme: string; setTheme: (theme: string) => void; api: OverlayApi; exportLogs: () => void; clearLogs: () => void }) {
-  return <div className="stack pageFade"><PageIntro title="Settings" note="App preferences and safe official settings shortcuts." path={officialPaths.settings} api={props.api} /><div className="grid two"><section className="panel"><span>Theme</span><select value={props.theme} onChange={(event) => props.setTheme(event.target.value)}>{themes.map((item) => <option key={item}>{item}</option>)}</select></section>{["Stability Mode", "Adaptive Dynamic Calibration", "Return Rate"].map((text) => <button className="panel actionPanel" key={text} onClick={() => props.api.runOverlayAction({ page: "Settings", action: text, targetOfficialPath: officialPaths.settings, commandType: "clickByText", text })}><span>Official shortcut</span><strong>{text}</strong><p>Open/click if visible</p></button>)}<section className="panel"><span>Destructive setting</span><strong>Reset all keyboard settings</strong><p>Never triggered automatically. Opens official settings only.</p><button onClick={() => props.api.openOfficialPath(officialPaths.settings, true)}>Open in Official Driver</button></section><section className="panel"><span>Logs</span><strong>Export or clear</strong><div className="actions"><button onClick={props.exportLogs}>Export Logs</button><button onClick={props.clearLogs}>Clear Logs</button></div></section></div></div>;
+  return <div className="stack pageFade"><PageIntro title="Settings" note="App preferences and safe official settings shortcuts." path={officialPaths.settings} api={props.api} /><div className="grid two"><section className="panel"><span>Theme</span><select value={props.theme} onChange={(event) => props.setTheme(event.target.value)}>{themes.map((item) => <option key={item}>{item}</option>)}</select></section>{["Stability Mode", "Adaptive Dynamic Calibration", "Return Rate"].map((text) => <button className="panel actionPanel" key={text} onClick={() => props.api.runOverlayAction({ page: "Settings", action: text, targetOfficialPath: officialPaths.settings, commandType: "clickByText", text })}><span>Official shortcut</span><strong>{text}</strong><p>Open/click if visible</p></button>)}<section className="panel"><span>Destructive setting</span><strong>Reset all keyboard settings</strong><p>Never triggered automatically. Opens official settings only.</p><button onClick={() => props.api.openOfficialPath(officialPaths.settings, true)}>Open in Official Driver</button></section><section className="panel"><span>Diagnostics</span><strong>Export or clear</strong><div className="actions"><button onClick={props.exportLogs}>Export Diagnostics</button><button onClick={props.clearLogs}>Clear Activity</button></div></section></div><AdapterInspector api={props.api} /></div>;
 }
 
 function RouteCards({ page, path, api, cards }: { page: Page; path: OfficialPath; api: OverlayApi; cards: string[] }) {
@@ -358,8 +369,17 @@ function PageIntro({ title, note, path, api }: { title: string; note: string; pa
   return <section className="pageIntro"><div><span className="eyebrow">Overlay control</span><h2>{title}</h2><p>{note}</p></div><div className="heroActions"><button className="primary" onClick={() => api.runOverlayAction({ page: title as Page, action: `Open ${path}`, targetOfficialPath: path, commandType: "navigateToPath" })}>Prepare Official Page</button><button onClick={() => api.openOfficialPath(path, true)}>Show Official Driver</button></div></section>;
 }
 
-function OfficialDriverPanel({ mode, setMode }: { mode: WebviewMode; setMode: (mode: WebviewMode) => void }) {
-  return <div className="stack pageFade"><div className="notice">The official webview remains mounted. Docked shows it full-size, Compact shows an inspector, Hidden de-emphasizes it while overlay pages control it.</div><div className="actions">{(["Docked", "Compact", "Hidden"] as WebviewMode[]).map((item) => <button className={mode === item ? "primary" : ""} key={item} onClick={() => setMode(item)}>{item}</button>)}</div></div>;
+function OfficialDriverPanel({ mode, setMode, api }: { mode: WebviewMode; setMode: (mode: WebviewMode) => void; api: OverlayApi }) {
+  return <div className="stack pageFade"><div className="notice">The official webview remains mounted. Docked shows it full-size, Compact shows an inspector, Hidden de-emphasizes it while overlay pages control it.</div><div className="actions">{(["Docked", "Compact", "Hidden"] as WebviewMode[]).map((item) => <button className={mode === item ? "primary" : ""} key={item} onClick={() => setMode(item)}>{item}</button>)}</div><AdapterInspector api={api} /></div>;
+}
+
+function AdapterInspector({ api }: { api: OverlayApi }) {
+  const [lastResult, setLastResult] = useState<WebviewCommandResult | undefined>();
+  const run = async (label: string, commandType: WebviewCommandType) => {
+    const result = await api.runOverlayAction({ page: "Settings", action: label, targetOfficialPath: officialPaths.home, commandType });
+    setLastResult(result);
+  };
+  return <section className="panel inspectorPanel"><span>Adapter Inspector</span><strong>Live DOM discovery</strong><p>Developer-only snapshots for tuning adapters. No cookies, storage, auth headers, or full HTML are collected.</p><div className="actions"><button onClick={() => run("Snapshot visible buttons", "snapshotVisibleButtons")}>Snapshot visible buttons</button><button onClick={() => run("Snapshot visible inputs", "snapshotVisibleInputs")}>Snapshot visible inputs</button><button onClick={() => run("Snapshot visible tabs", "snapshotVisibleTabs")}>Snapshot visible tabs</button><button onClick={() => run("Snapshot page text summary", "snapshotPageTextSummary")}>Snapshot page text summary</button><button onClick={() => run("Snapshot active elements", "snapshotActiveElements")}>Snapshot selected/active elements</button></div>{lastResult && <pre className="inspectorOutput">{JSON.stringify(lastResult.details ?? lastResult.snapshot ?? lastResult, null, 2)}</pre>}</section>;
 }
 
 const OfficialWebviewHost = React.forwardRef<ElectronWebview | null, { mode: WebviewMode; targetUrl: string; addLogEvent: (payload: unknown) => void; updateOfficialUrl: (url: string, type?: string) => void }>(function OfficialWebviewHost(props, ref) {
@@ -397,11 +417,11 @@ const OfficialWebviewHost = React.forwardRef<ElectronWebview | null, { mode: Web
 function LogsPage(props: { events: OverlayLogEvent[]; actions: OverlayAction[]; marker: string; setMarker: (marker: string) => void; addMarker: (label?: string) => void; exportLogs: () => void; clearLogs: () => void; derived: ReturnType<typeof deriveLogState> }) {
   const [filter, setFilter] = useState<Filter>("All");
   const events = filterEvents(props.events, filter);
-  return <div className="logs full pageFade"><div className="logsHeader"><div><h2>Logs & Actions</h2><p>{props.derived.eventCount} raw events and {props.actions.length} overlay actions.</p></div><div className="actions"><button onClick={props.exportLogs}>Export JSON</button><button onClick={props.clearLogs}>Clear Logs</button></div></div><FilterTabs filter={filter} setFilter={setFilter} /><QuickMarkers addMarker={(label) => props.addMarker(label)} /><MarkerInput marker={props.marker} setMarker={props.setMarker} addMarker={props.addMarker} /><ActionHistory actions={props.actions} /><EventList events={events} /></div>;
+  return <div className="logs full pageFade"><div className="logsHeader"><div><h2>Diagnostics & Actions</h2><p>{props.derived.eventCount} activity events and {props.actions.length} adapter actions.</p></div><div className="actions"><button onClick={props.exportLogs}>Export Diagnostics</button><button onClick={props.clearLogs}>Clear Activity</button></div></div><FilterTabs filter={filter} setFilter={setFilter} /><QuickMarkers addMarker={(label) => props.addMarker(label)} /><MarkerInput marker={props.marker} setMarker={props.setMarker} addMarker={props.addMarker} /><ActionHistory actions={props.actions} /><EventList events={events} /></div>;
 }
 
 function UtilityDrawer({ derived, actions, events, exportLogs }: { derived: ReturnType<typeof deriveLogState>; actions: OverlayAction[]; events: OverlayLogEvent[]; exportLogs: () => void }) {
-  return <div className="logs"><div className="drawerTitle"><h3>Utility</h3><span className="sessionDot">Secondary</span></div><div className="miniStats"><span>{derived.connectedDeviceStatus}</span><span>Route {derived.currentRoute}</span><span>Last {derived.lastOverlayAction?.status ?? "none"}</span><span>{events.length} log events</span></div><ActionHistory actions={actions.slice(0, 5)} compact /><button onClick={exportLogs}>Export JSON</button></div>;
+  return <div className="logs"><div className="drawerTitle"><h3>Diagnostics</h3><span className="sessionDot">Secondary</span></div><div className="miniStats"><span>{derived.deviceConnectStatus}</span><span>Route {derived.currentRoute}</span><span>Last {derived.lastOverlayAction?.status ?? "none"}</span><span>{events.length} activity events</span></div><ActionHistory actions={actions.slice(0, 5)} compact /><button onClick={exportLogs}>Export Diagnostics</button></div>;
 }
 
 function ActionHistory({ actions, compact = false }: { actions: OverlayAction[]; compact?: boolean }) {

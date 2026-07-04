@@ -40,16 +40,32 @@ type WebviewCommand = {
     | "setRangeValue"
     | "setRadioByLabel"
     | "setToggleByLabel"
-    | "getVisibleTextSnapshot";
+    | "getVisibleTextSnapshot"
+    | "snapshotVisibleButtons"
+    | "snapshotVisibleInputs"
+    | "snapshotVisibleTabs"
+    | "snapshotPageTextSummary"
+    | "snapshotActiveElements"
+    | "waitForText"
+    | "waitForSelector"
+    | "setRangeByNearbyLabel"
+    | "clickButtonNearText"
+    | "getRememberedHidDevices";
   path?: string;
   text?: string;
   selector?: string;
   value?: string | number | boolean;
+  tag?: string;
+  nearText?: string;
   timeoutMs?: number;
 };
 
 type CommandResult = {
   id: string;
+  ok: boolean;
+  command: string;
+  commandId: string;
+  timestamp: string;
   type: string;
   success: boolean;
   message: string;
@@ -57,6 +73,7 @@ type CommandResult = {
   matchedText?: string;
   selector?: string;
   snapshot?: string[];
+  details?: unknown;
 };
 
 function emit(payload: LogPayload): void {
@@ -312,12 +329,7 @@ function installCommandBridge(): void {
   try {
     ipcRenderer.on("ak680-command", (_event, command: WebviewCommand) => {
       void runCommand(command).then(emitCommandResult).catch((error) => {
-        emitCommandResult({
-          id: command?.id ?? crypto.randomUUID(),
-          type: command?.type ?? "unknown",
-          success: false,
-          message: summarizeError(error)
-        });
+        emitCommandResult(baseResult(command ?? { id: crypto.randomUUID(), type: "detectOfficialState" }, false, summarizeError(error)));
       });
     });
   } catch {
@@ -357,6 +369,26 @@ async function runCommand(command: WebviewCommand): Promise<CommandResult> {
         ...baseResult(command, true, "Visible text snapshot captured"),
         snapshot: visibleTextSnapshot(40)
       };
+    case "snapshotVisibleButtons":
+      return { ...baseResult(command, true, "Visible buttons snapshot captured"), details: elementSnapshot("button, [role='button'], a", 60) };
+    case "snapshotVisibleInputs":
+      return { ...baseResult(command, true, "Visible inputs snapshot captured"), details: elementSnapshot("input, textarea, select, [role='slider'], [role='switch'], [role='checkbox'], [role='radio']", 60) };
+    case "snapshotVisibleTabs":
+      return { ...baseResult(command, true, "Visible tabs snapshot captured"), details: elementSnapshot("[role='tab'], .tab, button", 60).filter((item) => /tab|mode|setting|normal|advanced|recal/i.test(String((item as { text?: string }).text ?? ""))) };
+    case "snapshotPageTextSummary":
+      return { ...baseResult(command, true, "Page text summary captured"), snapshot: visibleTextSnapshot(80) };
+    case "snapshotActiveElements":
+      return { ...baseResult(command, true, "Active/selected elements snapshot captured"), details: elementSnapshot("[aria-selected='true'], [aria-checked='true'], .active, .selected, input:checked", 80) };
+    case "waitForText":
+      return waitForText(command);
+    case "waitForSelector":
+      return waitForSelector(command);
+    case "setRangeByNearbyLabel":
+      return setRangeByNearbyLabel(command);
+    case "clickButtonNearText":
+      return clickButtonNearText(command);
+    case "getRememberedHidDevices":
+      return getRememberedHidDevices(command);
     default:
       return baseResult(command, false, "Unsupported command");
   }
@@ -365,6 +397,10 @@ async function runCommand(command: WebviewCommand): Promise<CommandResult> {
 function baseResult(command: WebviewCommand, success: boolean, message: string): CommandResult {
   return {
     id: command.id,
+    ok: success,
+    command: command.type,
+    commandId: command.id,
+    timestamp: new Date().toISOString(),
     type: command.type,
     success,
     message,
@@ -379,16 +415,19 @@ function navigateToPath(command: WebviewCommand): CommandResult {
   if (!["/", "/custom-keys", "/lighting", "/macro", "/performance", "/advanced-keys", "/settings"].includes(path)) {
     return baseResult(command, false, `Blocked unknown official path ${path}`);
   }
-  history.pushState(null, "", path);
-  window.dispatchEvent(new PopStateEvent("popstate"));
+  if (location.pathname !== path) {
+    history.pushState(null, "", path);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }
   return baseResult(command, true, `Navigated to ${path}`);
 }
 
 function clickByText(command: WebviewCommand): CommandResult {
   const text = sanitizeText(command.text);
   if (!text) return baseResult(command, false, "No text provided");
-  const element = findClickableByText(text);
+  const element = findClickableByText(text, command.tag);
   if (!element) return baseResult(command, false, `Could not find visible text "${text}"`);
+  element.scrollIntoView({ block: "center", inline: "center" });
   element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
   return { ...baseResult(command, true, `Clicked "${text}"`), matchedText: sanitizeText(element.textContent) };
 }
@@ -396,7 +435,8 @@ function clickByText(command: WebviewCommand): CommandResult {
 function clickBySelector(command: WebviewCommand): CommandResult {
   if (!command.selector) return baseResult(command, false, "No selector provided");
   const element = document.querySelector(command.selector);
-  if (!(element instanceof HTMLElement)) return baseResult(command, false, `Could not find selector ${command.selector}`);
+  if (!(element instanceof HTMLElement) || !isVisibleEnabled(element)) return baseResult(command, false, `Could not find visible enabled selector ${command.selector}`);
+  element.scrollIntoView({ block: "center", inline: "center" });
   element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
   return { ...baseResult(command, true, `Clicked selector ${command.selector}`), matchedText: sanitizeText(element.textContent) };
 }
@@ -417,6 +457,61 @@ function setRangeValue(command: WebviewCommand): CommandResult {
   input.dispatchEvent(new Event("input", { bubbles: true }));
   input.dispatchEvent(new Event("change", { bubbles: true }));
   return baseResult(command, true, "Range value set through official DOM");
+}
+
+async function waitForText(command: WebviewCommand): Promise<CommandResult> {
+  const text = sanitizeText(command.text);
+  if (!text) return baseResult(command, false, "No text provided");
+  const found = await retryUntil(() => Boolean(findByText(text, command.tag)), command.timeoutMs);
+  return baseResult(command, found, found ? `Found text "${text}"` : `Timed out waiting for text "${text}"`);
+}
+
+async function waitForSelector(command: WebviewCommand): Promise<CommandResult> {
+  if (!command.selector) return baseResult(command, false, "No selector provided");
+  const selector = command.selector;
+  const found = await retryUntil(() => {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLElement && isVisibleEnabled(element);
+  }, command.timeoutMs);
+  return baseResult(command, found, found ? `Found selector ${selector}` : `Timed out waiting for selector ${selector}`);
+}
+
+function setRangeByNearbyLabel(command: WebviewCommand): CommandResult {
+  const labels = [command.text, command.nearText].filter((item): item is string => Boolean(item));
+  for (const label of labels) {
+    const range = findNearbyRange(label);
+    if (range) {
+      range.scrollIntoView({ block: "center", inline: "center" });
+      setNativeValue(range, String(command.value ?? ""));
+      range.dispatchEvent(new Event("input", { bubbles: true }));
+      range.dispatchEvent(new Event("change", { bubbles: true }));
+      return { ...baseResult(command, true, `Set range near "${label}"`), matchedText: label, selector: "input[type='range']" };
+    }
+  }
+  return baseResult(command, false, `Could not find nearby range for ${labels.join(" / ") || "label"}`);
+}
+
+function clickButtonNearText(command: WebviewCommand): CommandResult {
+  const nearText = sanitizeText(command.nearText ?? command.text);
+  if (!nearText) return baseResult(command, false, "No nearby text provided");
+  const anchor = findByText(nearText);
+  const scope = anchor?.closest("section, article, li, .card, div") ?? document.body;
+  const button = Array.from(scope.querySelectorAll("button, [role='button'], a")).find((item) => item instanceof HTMLElement && isVisibleEnabled(item));
+  if (!(button instanceof HTMLElement)) return baseResult(command, false, `Could not find button near "${nearText}"`);
+  button.scrollIntoView({ block: "center", inline: "center" });
+  button.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+  return { ...baseResult(command, true, `Clicked button near "${nearText}"`), matchedText: sanitizeText(button.textContent) };
+}
+
+async function getRememberedHidDevices(command: WebviewCommand): Promise<CommandResult> {
+  try {
+    const hid = (navigator as Navigator & { hid?: HidLike }).hid;
+    if (!hid?.getDevices) return baseResult(command, false, "WebHID getDevices unavailable");
+    const devices = await hid.getDevices();
+    return { ...baseResult(command, true, `Found ${devices.length} remembered HID device(s)`), details: devices.map(deviceInfo) };
+  } catch (error) {
+    return baseResult(command, false, summarizeError(error));
+  }
 }
 
 function setChoiceByLabel(command: WebviewCommand, mode: "radio" | "toggle"): CommandResult {
@@ -445,17 +540,53 @@ function findInput(command: WebviewCommand, type?: string): HTMLInputElement | H
   return first instanceof HTMLInputElement || first instanceof HTMLTextAreaElement || first instanceof HTMLSelectElement ? first : null;
 }
 
-function findClickableByText(text: string): HTMLElement | null {
-  const candidates = Array.from(document.querySelectorAll("button, [role='button'], [role='tab'], label, li, div, span, a"));
+function findClickableByText(text: string, tag?: string): HTMLElement | null {
+  const selector = tag ? `${tag}, [role='button'], [role='tab'], label` : "button, [role='button'], [role='tab'], label, li, div, span, a";
+  const candidates = Array.from(document.querySelectorAll(selector)).filter((item) => item instanceof HTMLElement && isVisibleEnabled(item));
   const exact = candidates.find((item) => includesText(item, text, true));
   const loose = exact ?? candidates.find((item) => includesText(item, text));
   return loose instanceof HTMLElement ? loose : null;
 }
 
 function includesText(element: Element, text: string, exact = false): boolean {
-  const content = sanitizeText(element.textContent)?.toLowerCase();
-  const needle = text.toLowerCase();
+  const content = normalizeText(element.textContent);
+  const needle = normalizeText(text);
   return exact ? content === needle : Boolean(content?.includes(needle));
+}
+
+function findByText(text: string, tag?: string): HTMLElement | null {
+  const selector = tag ?? "button, label, [role='tab'], [role='button'], h1, h2, h3, p, span, div";
+  const candidates = Array.from(document.querySelectorAll(selector)).filter((item) => item instanceof HTMLElement && isVisibleEnabled(item));
+  return candidates.find((item) => includesText(item, text, true)) as HTMLElement | undefined ?? candidates.find((item) => includesText(item, text)) as HTMLElement | undefined ?? null;
+}
+
+function findNearbyRange(text: string): HTMLInputElement | null {
+  const anchor = findByText(text);
+  const scopes = [anchor?.closest("section, article, li, .card, div"), anchor?.parentElement, document.body].filter((item): item is Element => Boolean(item));
+  for (const scope of scopes) {
+    const range = scope.querySelector("input[type='range']");
+    if (range instanceof HTMLInputElement && isVisibleEnabled(range)) return range;
+  }
+  return null;
+}
+
+function isVisibleEnabled(element: Element): boolean {
+  if (!(element instanceof HTMLElement)) return false;
+  const style = getComputedStyle(element);
+  const disabled = "disabled" in element && Boolean((element as HTMLButtonElement | HTMLInputElement).disabled);
+  return !disabled && style.visibility !== "hidden" && style.display !== "none" && element.getBoundingClientRect().width > 0 && element.getBoundingClientRect().height > 0;
+}
+
+function retryUntil(check: () => boolean, timeoutMs = 3500): Promise<boolean> {
+  const started = Date.now();
+  return new Promise((resolve) => {
+    const tick = () => {
+      if (check()) resolve(true);
+      else if (Date.now() - started >= timeoutMs) resolve(false);
+      else window.setTimeout(tick, 160);
+    };
+    tick();
+  });
 }
 
 function visibleTextSnapshot(limit: number): string[] {
@@ -464,6 +595,30 @@ function visibleTextSnapshot(limit: number): string[] {
     .map((item) => sanitizeText(item.textContent))
     .filter((item): item is string => Boolean(item))
     .slice(0, limit);
+}
+
+function elementSnapshot(selector: string, limit: number): Array<Record<string, unknown>> {
+  return Array.from(document.querySelectorAll(selector))
+    .filter((item) => item instanceof HTMLElement && isVisibleEnabled(item))
+    .slice(0, limit)
+    .map((item) => {
+      const element = item as HTMLElement;
+      const input = element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement ? element : undefined;
+      const rect = element.getBoundingClientRect();
+      return {
+        tag: element.tagName.toLowerCase(),
+        role: element.getAttribute("role"),
+        text: sanitizeText(element.textContent),
+        ariaLabel: element.getAttribute("aria-label"),
+        title: element.getAttribute("title"),
+        classSummary: classSummary(element),
+        inputType: input instanceof HTMLInputElement ? input.type : undefined,
+        value: input ? safeInputValue(input) : undefined,
+        checked: input instanceof HTMLInputElement && (input.type === "checkbox" || input.type === "radio") ? input.checked : undefined,
+        selected: element.getAttribute("aria-selected") ?? (element.classList.contains("selected") || element.classList.contains("active")),
+        box: { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) }
+      };
+    });
 }
 
 function setNativeValue(element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, value: string): void {
@@ -513,6 +668,17 @@ function sanitizeText(value: string | null | undefined): string | undefined {
   const clean = value?.replace(/\s+/g, " ").trim();
   if (!clean) return undefined;
   return clean.slice(0, 80);
+}
+
+function normalizeText(value: string | null | undefined): string {
+  return value?.replace(/\s+/g, " ").trim().toLowerCase() ?? "";
+}
+
+function safeInputValue(input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement): string | number | boolean | undefined {
+  if (isSensitiveInput(input)) return "[redacted]";
+  if (input instanceof HTMLInputElement && input.type === "range") return Number(input.value);
+  if (input instanceof HTMLInputElement && (input.type === "checkbox" || input.type === "radio")) return input.checked;
+  return sanitizeText(input.value);
 }
 
 function isSensitiveInput(input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement): boolean {

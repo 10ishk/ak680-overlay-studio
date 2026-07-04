@@ -377,6 +377,29 @@ webview { display: block; width: 100%; height: 100%; border-radius: 16px; backgr
 }
 .assignmentGrid button.active { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
 .inspector { margin-top: 14px; padding: 14px; color: var(--muted); border: 1px dashed var(--border); border-radius: 16px; }
+.macroWorkspace {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.5fr);
+  gap: 14px;
+  align-items: stretch;
+}
+.macroComposer { display: grid; gap: 14px; align-content: start; }
+.macroComposer > strong { font-size: 22px; }
+.macroSlots { display: grid; gap: 8px; }
+.macroSlots button {
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+.macroSlots button.active { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.fieldLabel { display: grid; gap: 8px; color: var(--muted); font-size: 12px; }
+.macroActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.macroActions .actionPanel { min-height: 150px; }
 
 .logs { display: grid; gap: 12px; }
 .drawerTitle { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -509,6 +532,7 @@ webview { display: block; width: 100%; height: 100%; border-radius: 16px; backgr
   .commandGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .presetGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .keymapLayout { grid-template-columns: 1fr; }
+  .macroWorkspace { grid-template-columns: 1fr; }
   .effectGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .officialHost.docked { left: 228px; right: 24px; }
 }
@@ -530,6 +554,7 @@ webview { display: block; width: 100%; height: 100%; border-radius: 16px; backgr
   .grid.three, .grid.two { grid-template-columns: 1fr; }
   .commandGrid { grid-template-columns: 1fr; }
   .presetGrid, .controlDock { grid-template-columns: 1fr; }
+  .macroActions { grid-template-columns: 1fr; }
   .effectGrid { grid-template-columns: 1fr; }
   .content { overflow: visible; }
   .control { grid-template-columns: 1fr; }

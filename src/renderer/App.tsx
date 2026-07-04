@@ -105,6 +105,8 @@ const markerExamples = ["SOCD baseline", "SOCD ON", "SOCD OFF", "RT 1.2mm", "Lig
 const lightingEffects = ["Static Bright", "Single Point On", "Single Point Off", "Starry Sky", "Snowfall", "Floral Competition", "Dynamic Breath", "Spectrum Cycle", "Color Fountain", "Ripples Spread", "Endless Flow", "Back and Forth", "Custom"];
 const colors = ["#ff7a1a", "#39a7ff", "#a78bfa", "#9bd67b", "#ffffff", "#ff4d6d"];
 const keyAssignments = ["Esc", "Tab", "Caps Lock", "Left Shift", "Left Ctrl", "Left Alt", "Space", "Backspace", "Enter", "Delete", "Home", "End", "Page Up", "Page Down"];
+const macroSlots = ["Game Push", "Layer Tap", "Media Stack", "Rapid Utility"];
+const macroTargets = ["F1", "F2", "F3", "F4", "Ins", "Del", "Home", "End"];
 
 console.log("AK680 renderer booted");
 
@@ -465,7 +467,46 @@ function KeymapPage({ api }: { api: OverlayApi }) {
 }
 
 function MacrosPage({ api }: { api: OverlayApi }) {
-  return <div className="stack pageFade"><PageIntro title="Macros" note="Macro actions use visible official text where found. Recording falls back safely if not found." path={officialPaths.macros} api={api} /><div className="grid three">{["Open Macro Manager", "New Macro in Official Driver", "Start Recording in Official Driver"].map((action) => <button className="panel actionPanel" key={action} onClick={() => api.runOverlayAction({ page: "Macros", action, targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: action.replace(" in Official Driver", "").replace("Open ", "").replace("Start ", "") })}><span>Macro</span><strong>{action}</strong><p>Best-effort official DOM action</p></button>)}</div></div>;
+  const [slot, setSlot] = useState(macroSlots[0]);
+  const [target, setTarget] = useState(macroTargets[0]);
+  const createMacro = async () => {
+    await api.runOverlayAction({ page: "Macros", action: "Open Macro Manager", targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: "Macro" });
+    const nameResult = await api.runOverlayAction({ page: "Macros", action: `Name macro ${slot}`, targetOfficialPath: officialPaths.macros, commandType: "setInputValue", text: "Name", value: slot });
+    if (!nameResult.success) {
+      await api.runOverlayAction({ page: "Macros", action: "New Macro", targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: "New" });
+    }
+  };
+  const recordMacro = async () => {
+    await api.runOverlayAction({ page: "Macros", action: `Select macro ${slot}`, targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: slot });
+    await api.runOverlayAction({ page: "Macros", action: "Start recording", targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: "Record" });
+  };
+  const saveMacro = async () => {
+    await api.runOverlayAction({ page: "Macros", action: "Stop recording", targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: "Stop" });
+    await api.runOverlayAction({ page: "Macros", action: "Save macro", targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: "Save" });
+  };
+  const assignMacro = async () => {
+    await api.runOverlayAction({ page: "Macros", action: `Select macro ${slot}`, targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: slot });
+    await api.runOverlayAction({ page: "Macros", action: `Assign macro to ${target}`, targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: target });
+  };
+  return (
+    <div className="stack pageFade">
+      <PageIntro title="Macros" note="Build and assign macros through the official driver." path={officialPaths.macros} api={api} />
+      <div className="macroWorkspace">
+        <section className="panel macroComposer">
+          <span>Macro slot</span>
+          <strong>{slot}</strong>
+          <div className="macroSlots">{macroSlots.map((item) => <button className={slot === item ? "active" : ""} key={item} onClick={() => setSlot(item)}>{item}</button>)}</div>
+          <label className="fieldLabel">Assign to<select value={target} onChange={(event) => setTarget(event.target.value)}>{macroTargets.map((item) => <option key={item}>{item}</option>)}</select></label>
+        </section>
+        <section className="macroActions">
+          <button className="panel actionPanel" onClick={createMacro}><span>Step 1</span><strong>Create</strong><p>Name or open the selected macro slot.</p></button>
+          <button className="panel actionPanel" onClick={recordMacro}><span>Step 2</span><strong>Record</strong><p>Starts official macro recording if visible.</p></button>
+          <button className="panel actionPanel" onClick={saveMacro}><span>Step 3</span><strong>Save</strong><p>Stops and saves through the official page.</p></button>
+          <button className="panel actionPanel" onClick={assignMacro}><span>Step 4</span><strong>Assign</strong><p>Maps {slot} to {target} where exposed.</p></button>
+        </section>
+      </div>
+    </div>
+  );
 }
 
 function SettingsPage(props: { theme: string; setTheme: (theme: string) => void; api: OverlayApi; exportLogs: () => void; clearLogs: () => void }) {

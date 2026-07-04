@@ -27,6 +27,7 @@ type HidInputReportLike = Event & {
 
 const SOURCE = "webhid";
 const OFFICIAL_ORIGIN = "https://ajazz.driveall.cn";
+const recentNonHidEvents = new Map<string, number>();
 
 type WebviewCommand = {
   id: string;
@@ -78,6 +79,7 @@ type CommandResult = {
 
 function emit(payload: LogPayload): void {
   try {
+    if (shouldThrottle(payload)) return;
     ipcRenderer.sendToHost("ak680-log-event", {
       id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
@@ -88,6 +90,22 @@ function emit(payload: LogPayload): void {
   } catch {
     // Logging must never interfere with the official driver.
   }
+}
+
+function shouldThrottle(payload: LogPayload): boolean {
+  if (payload.source === SOURCE || payload.type === "adapter-command") return false;
+  const key = [
+    payload.source ?? "system",
+    payload.type ?? "event",
+    payload.phase ?? "event",
+    payload.method ?? "",
+    location.hash || location.pathname || "/",
+    payload.summary ?? ""
+  ].join("|");
+  const now = Date.now();
+  const previous = recentNonHidEvents.get(key) ?? 0;
+  recentNonHidEvents.set(key, now);
+  return now - previous < 1000;
 }
 
 function emitCommandResult(result: CommandResult): void {

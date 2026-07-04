@@ -15,7 +15,7 @@ export function detectRoute(url = "https://ajazz.driveall.cn/"): OfficialRoute {
 }
 
 export function getOfficialPath(): string {
-  return "/";
+  return "/custom-keys";
 }
 
 export function goToOfficialPath(navigate: OfficialNavigator, path = getOfficialPath()): void {

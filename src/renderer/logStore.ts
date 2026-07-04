@@ -96,7 +96,7 @@ export const initialLogState: LogState = {
       type: "boot",
       phase: "event",
       summary: "Overlay shell ready",
-      route: "/",
+      route: routeFromUrl(bridge.metadata.officialDriverUrl),
       url: bridge.metadata.officialDriverUrl
     }
   ]
@@ -150,8 +150,15 @@ export function normalizeGuestEvent(payload: unknown, officialUrl: string): Over
 }
 
 export function appendEvent(state: LogState, event: OverlayLogEvent): LogState {
+  const officialUrl = officialUrlForState(state.officialUrl, event.url);
+  if (hasRecentDuplicateDiagnostic(state.events, event)) {
+    return {
+      ...state,
+      officialUrl
+    };
+  }
   return {
-    officialUrl: event.url ?? state.officialUrl,
+    officialUrl,
     session: state.session,
     actions: state.actions,
     webviewMode: state.webviewMode,
@@ -278,6 +285,54 @@ export function routeFromUrl(url: string): string {
   } catch {
     return "/";
   }
+}
+
+function officialUrlForState(currentUrl: string, nextUrl?: string): string {
+  if (!nextUrl) return currentUrl;
+  const currentRoute = routeFromUrl(currentUrl);
+  const nextRoute = routeFromUrl(nextUrl);
+  if (nextRoute === "/" && currentRoute !== "/") return currentUrl;
+  return nextUrl;
+}
+
+function hasRecentDuplicateDiagnostic(events: OverlayLogEvent[], next: OverlayLogEvent): boolean {
+  return events.slice(0, 25).some((event) => isDuplicateDiagnostic(event, next));
+}
+
+function isDuplicateDiagnostic(previous: OverlayLogEvent | undefined, next: OverlayLogEvent): boolean {
+  if (!previous) return false;
+  if (next.source === "webhid" || previous.source === "webhid") return false;
+  const previousTime = Date.parse(previous.timestamp);
+  const nextTime = Date.parse(next.timestamp);
+  if (!Number.isFinite(previousTime) || !Number.isFinite(nextTime)) return false;
+  if (Math.abs(nextTime - previousTime) > 1000) return false;
+  if (previous.route === next.route && previous.source === "host" && next.source === "host" && isNoisyLifecycle(previous.type) && isNoisyLifecycle(next.type)) return true;
+  if (previous.route === next.route && previous.source === "dom" && next.source === "dom" && isNoisyDom(previous.type) && isNoisyDom(next.type)) return true;
+  return previous.source === next.source
+    && previous.type === next.type
+    && previous.phase === next.phase
+    && previous.method === next.method
+    && previous.route === next.route
+    && previous.summary === next.summary;
+}
+
+function isNoisyLifecycle(type: string): boolean {
+  return type === "did-start-loading"
+    || type === "did-stop-loading"
+    || type === "did-finish-load"
+    || type === "did-navigate"
+    || type === "did-navigate-in-page"
+    || type === "page-title-updated"
+    || type === "dom-ready";
+}
+
+function isNoisyDom(type: string): boolean {
+  return type === "history.pushState"
+    || type === "history.replaceState"
+    || type === "hashchange"
+    || type === "popstate"
+    || type === "page-load"
+    || type === "DOMContentLoaded";
 }
 
 export function timestampFilename(): string {

@@ -139,18 +139,27 @@ function RendererFailure({ error }: { error: Error }) {
 
 function App() {
   const [page, setPage] = useState<Page>("Dashboard");
-  const [theme, setTheme] = useState(() => localStorage.getItem("ak680-theme") ?? themes[0]);
+  const [theme, setTheme] = useState(readInitialTheme);
   const [logState, setLogState] = useState(initialLogState);
   const [marker, setMarker] = useState(markerExamples[0]);
   const [officialTargetUrl, setOfficialTargetUrl] = useState(bridge.metadata.officialDriverUrl);
   const [toast, setToast] = useState<string | undefined>();
   const webviewRef = useRef<ElectronWebview | null>(null);
   const pendingCommands = useRef(new Map<string, PendingCommand>());
+  const officialUrlRef = useRef(initialLogState.officialUrl);
   const derived = useMemo(() => deriveLogState(logState), [logState]);
+
+  useEffect(() => {
+    officialUrlRef.current = logState.officialUrl;
+  }, [logState.officialUrl]);
 
   const setThemePersisted = useCallback((nextTheme: string) => {
     setTheme(nextTheme);
-    localStorage.setItem("ak680-theme", nextTheme);
+    try {
+      localStorage.setItem("ak680-theme", nextTheme);
+    } catch {
+      // Theme persistence should not block the overlay UI.
+    }
   }, []);
 
   const addLogEvent = useCallback((payload: unknown) => {
@@ -167,8 +176,7 @@ function App() {
           status: result.success ? "success" : "failure",
           message: result.message,
           matchedText: result.matchedText,
-          selector: result.selector
-          ,
+          selector: result.selector,
           details: result.details
         }));
         setToast(result.success ? `Applied: ${pending.action}` : result.message);
@@ -185,18 +193,23 @@ function App() {
   }, [addLogEvent]);
 
   const updateOfficialUrl = useCallback((url: string, type = "navigation") => {
-    setLogState((state) => appendEvent({ ...state, officialUrl: url }, normalizeGuestEvent({ source: "host", type, phase: "event", url, summary: `Official webview ${type}` }, url)));
+    setLogState((state) => appendEvent(state, normalizeGuestEvent({ source: "host", type, phase: "event", url, summary: `Official webview ${type}` }, state.officialUrl)));
   }, []);
 
-  const openOfficialPath = useCallback((path: OfficialPath = pathFromUrl(logState.officialUrl), switchToOfficial = false) => {
-    const url = toOfficialUrl(path);
-    setOfficialTargetUrl(url);
+  const openOfficialPath = useCallback((path?: OfficialPath, switchToOfficial = false) => {
+    const targetPath = path ?? pathFromUrl(officialUrlRef.current);
+    const url = toOfficialUrl(targetPath);
+    setOfficialTargetUrl((current) => current === url ? current : url);
     if (switchToOfficial) setPage("Official Driver");
-    setLogState((state) => appendEvent({ ...state, officialUrl: url }, normalizeGuestEvent({ source: "host", type: "route-open", phase: "event", url, summary: `Open official route ${path}` }, url)));
-  }, [logState.officialUrl]);
+    setLogState((state) => appendEvent(state, normalizeGuestEvent({ source: "host", type: "route-open", phase: "event", url, summary: `Open official route ${targetPath}` }, state.officialUrl)));
+  }, []);
 
   const sendCommand = useCallback((command: WebviewCommand): void => {
-    webviewRef.current?.send?.("ak680-command", command);
+    try {
+      webviewRef.current?.send?.("ak680-command", command);
+    } catch (error) {
+      console.error("Failed to send official webview command", error);
+    }
   }, []);
 
   const runOverlayAction = useCallback((options: RunActionOptions): Promise<WebviewCommandResult> => {
@@ -425,48 +438,88 @@ function AdapterInspector({ api }: { api: OverlayApi }) {
 
 const OfficialWebviewHost = React.forwardRef<ElectronWebview | null, { mode: WebviewMode; targetUrl: string; addLogEvent: (payload: unknown) => void; updateOfficialUrl: (url: string, type?: string) => void; openOfficialPath: (path?: OfficialPath, switchPage?: boolean) => void; setMode: (mode: WebviewMode) => void }>(function OfficialWebviewHost(props, ref) {
   const localRef = useRef<ElectronWebview | null>(null);
+  const initialUrl = useRef(props.targetUrl);
+  const addLogEventRef = useRef(props.addLogEvent);
+  const updateOfficialUrlRef = useRef(props.updateOfficialUrl);
+  const openOfficialPathRef = useRef(props.openOfficialPath);
+  const setModeRef = useRef(props.setMode);
   const [domReady, setDomReady] = useState(false);
   const [webviewError, setWebviewError] = useState<string | undefined>();
   const [loadState, setLoadState] = useState<OfficialLoadState>("loading");
-  const [routeWarning, setRouteWarning] = useState<string | undefined>();
+  const [statusMessage, setStatusMessage] = useState("Loading official driver...");
   const routeRepairCount = useRef(0);
+  const pendingPath = useRef<OfficialPath | undefined>();
+  const readinessTimer = useRef<number | undefined>();
+  const lastLifecycleLog = useRef("");
+
   useEffect(() => {
-    routeRepairCount.current = 0;
-  }, [props.targetUrl]);
+    addLogEventRef.current = props.addLogEvent;
+    updateOfficialUrlRef.current = props.updateOfficialUrl;
+    openOfficialPathRef.current = props.openOfficialPath;
+    setModeRef.current = props.setMode;
+  }, [props.addLogEvent, props.updateOfficialUrl, props.openOfficialPath, props.setMode]);
+
   useEffect(() => {
     if (typeof ref === "function") ref(localRef.current);
     else if (ref) ref.current = localRef.current;
   });
+
   useEffect(() => {
     const webview = localRef.current;
     if (!webview) return;
+
     const logWebviewEvent = (eventName: string) => {
       const url = safeWebviewUrl(webview);
-      console.log(`[ak680-webview] ${eventName}`, url);
-      props.updateOfficialUrl(url, eventName);
+      const key = `${eventName}:${officialPathname(url)}`;
+      if (lastLifecycleLog.current !== key) {
+        console.log(`[ak680-webview] ${eventName}`, url);
+        lastLifecycleLog.current = key;
+      }
+      updateOfficialUrlRef.current(url, eventName);
     };
+
+    const loadOfficialPath = (path: OfficialPath, options: { auto?: boolean } = {}) => {
+      const currentPath = officialPathname(safeWebviewUrl(webview));
+      if (currentPath === path || pendingPath.current === path) return;
+      pendingPath.current = path;
+      if (options.auto) setStatusMessage("Opening Custom Keys...");
+      void webview.loadURL?.(toOfficialUrl(path)).catch((error) => {
+        pendingPath.current = undefined;
+        setLoadState("failed");
+        setWebviewError(String(error));
+      });
+    };
+
     const ensureUsefulRoute = () => {
       const url = safeWebviewUrl(webview);
-      if (officialPathname(url) === "/") {
-        setLoadState("blank");
-        setRouteWarning("Official driver did not open a usable page.");
-        if (routeRepairCount.current > 0) return;
+      const path = officialPathname(url);
+      if (path === "/") {
+        if (routeRepairCount.current > 0) {
+          setStatusMessage("Official driver loaded but this route rendered a blank area. Try Reload or Open Custom Keys.");
+          return;
+        }
         routeRepairCount.current += 1;
-        void webview.loadURL?.(toOfficialUrl(officialPaths.keymap)).catch((error) => {
-          setLoadState("failed");
-          setWebviewError(String(error));
-        });
+        loadOfficialPath(officialPaths.keymap, { auto: true });
         return;
       }
-      setRouteWarning(undefined);
+      if (path === officialPaths.keymap || path === officialPaths.lighting || path === officialPaths.performance || path === officialPaths.advancedKeys || path === officialPaths.macros || path === officialPaths.settings) {
+        setStatusMessage("Official driver loaded");
+      }
     };
+
     const checkCustomKeysReadiness = () => {
+      window.clearTimeout(readinessTimer.current);
       if (officialPathname(safeWebviewUrl(webview)) !== officialPaths.keymap) return;
-      window.setTimeout(() => {
+      readinessTimer.current = window.setTimeout(() => {
         const command = createCommand("waitForText", { text: "Custom Keys", timeoutMs: 2200 });
-        webview.send?.("ak680-command", command);
+        try {
+          webview.send?.("ak680-command", command);
+        } catch {
+          setStatusMessage("Official route loaded; adapter readiness not confirmed");
+        }
       }, 250);
     };
+
     const ready = () => {
       setDomReady(true);
       setLoadState("loaded");
@@ -480,37 +533,50 @@ const OfficialWebviewHost = React.forwardRef<ElectronWebview | null, { mode: Web
       if (detail.channel === "ak680-log-event") {
         const result = commandResultFromPayload(detail.args?.[0]);
         if (result?.command === "waitForText") {
-          setRouteWarning(result.success ? undefined : "Official page loaded but expected AK680 UI was not detected.");
+          setStatusMessage(result.success ? "Official driver loaded" : "Official route loaded; adapter readiness not confirmed");
         }
-        props.addLogEvent(detail.args?.[0]);
+        addLogEventRef.current(detail.args?.[0]);
       }
     };
+
     const nav = (event: Event) => {
       const current = event.currentTarget as ElectronWebview;
-      console.log(`[ak680-webview] ${event.type}`, safeWebviewUrl(current));
-      props.updateOfficialUrl(safeWebviewUrl(current), event.type);
+      const url = safeWebviewUrl(current);
+      console.log(`[ak680-webview] ${event.type}`, url);
+      updateOfficialUrlRef.current(url, event.type);
+      const path = officialPathname(url);
+      if (path === pendingPath.current) pendingPath.current = undefined;
       ensureUsefulRoute();
     };
+
     const fail = (event: Event) => {
       const detail = event as Event & { errorDescription?: string; validatedURL?: string };
       console.log("[ak680-webview] did-fail-load", detail.errorDescription, detail.validatedURL);
+      pendingPath.current = undefined;
       setLoadState("failed");
       setWebviewError(detail.errorDescription ?? "Official webview failed to load");
+      setStatusMessage("Official page failed to load");
     };
+
     const start = () => {
       setLoadState("loading");
+      setStatusMessage("Loading official driver...");
       logWebviewEvent("did-start-loading");
     };
+
     const stop = () => {
       setLoadState("loaded");
       logWebviewEvent("did-stop-loading");
     };
+
     const finish = () => {
+      pendingPath.current = undefined;
       setLoadState("loaded");
       logWebviewEvent("did-finish-load");
       ensureUsefulRoute();
       checkCustomKeysReadiness();
     };
+
     webview.addEventListener("dom-ready", ready);
     webview.addEventListener("ipc-message", ipc);
     webview.addEventListener("did-start-loading", start);
@@ -530,37 +596,61 @@ const OfficialWebviewHost = React.forwardRef<ElectronWebview | null, { mode: Web
       webview.removeEventListener("did-navigate-in-page", nav);
       webview.removeEventListener("page-title-updated", nav);
       webview.removeEventListener("did-fail-load", fail);
+      window.clearTimeout(readinessTimer.current);
     };
-  }, [props]);
+  }, []);
+
   useEffect(() => {
     const webview = localRef.current;
-    if (domReady && webview?.loadURL && safeWebviewUrl(webview) !== props.targetUrl) void webview.loadURL(props.targetUrl).catch((error) => setWebviewError(String(error)));
+    if (!domReady || !webview?.loadURL) return;
+    const targetPath = pathFromUrl(props.targetUrl);
+    const currentPath = officialPathname(safeWebviewUrl(webview));
+    if (currentPath === targetPath || pendingPath.current === targetPath) return;
+    pendingPath.current = targetPath;
+    void webview.loadURL(props.targetUrl).catch((error) => {
+      pendingPath.current = undefined;
+      setLoadState("failed");
+      setWebviewError(String(error));
+    });
   }, [domReady, props.targetUrl]);
+
   const openInWebview = (path: OfficialPath) => {
-    routeRepairCount.current = 0;
+    routeRepairCount.current = path === officialPaths.keymap ? 0 : routeRepairCount.current;
     const url = toOfficialUrl(path);
-    props.openOfficialPath(path, false);
-    if (localRef.current?.loadURL) void localRef.current.loadURL(url).catch((error) => setWebviewError(String(error)));
+    openOfficialPathRef.current(path, false);
+    const webview = localRef.current;
+    if (!webview?.loadURL) return;
+    if (officialPathname(safeWebviewUrl(webview)) === path || pendingPath.current === path) return;
+    pendingPath.current = path;
+    void webview.loadURL(url).catch((error) => {
+      pendingPath.current = undefined;
+      setLoadState("failed");
+      setWebviewError(String(error));
+    });
   };
+
   const reloadCustomKeys = () => openInWebview(officialPaths.keymap);
+
   const reloadCurrent = () => {
     routeRepairCount.current = 0;
     if (localRef.current?.reload) localRef.current.reload();
     else reloadCustomKeys();
   };
+
   return (
     <div className={`officialHost ${props.mode.toLowerCase()}`}>
       <div className="officialHostBar">
-        <span>{statusLabel(loadState)}</span>
+        <span>{statusLabel(loadState)} - {pathFromUrl(safeWebviewUrl(localRef.current))}</span>
         <button onClick={reloadCurrent}>Reload</button>
         <button onClick={reloadCustomKeys}>Open Custom Keys</button>
         <button onClick={() => openInWebview(officialPaths.lighting)}>Open Lighting</button>
         <button onClick={() => openInWebview(officialPaths.performance)}>Open Performance</button>
-        <button onClick={() => props.setMode("Docked")}>Open in Docked View</button>
+        <button onClick={() => openInWebview(officialPaths.advancedKeys)}>Open Advanced Keys</button>
+        <button onClick={() => setModeRef.current("Docked")}>Open Official Driver Page</button>
       </div>
-      {routeWarning && <div className="officialRouteBanner">Official driver page is loaded, but the current route may be blank. Open a feature route from the sidebar.</div>}
-      <webview ref={(node) => { localRef.current = node as ElectronWebview | null; }} src={props.targetUrl} preload={bridge.metadata.webviewPreloadPath} allow="hid" partition="persist:ajazz-official" />
-      {(webviewError || loadState === "failed" || loadState === "blank") && <div className="webviewError"><strong>{webviewError ? "Official page failed to load" : "Official driver did not open a usable page."}</strong><span>{webviewError ?? routeWarning ?? "Reload Custom Keys or open the official view."}</span><div className="actions compact"><button onClick={reloadCustomKeys}>Reload Custom Keys</button><button onClick={() => props.setMode("Docked")}>Open Official View</button></div></div>}
+      <div className="officialRouteBanner">{statusMessage}</div>
+      <webview ref={(node) => { localRef.current = node as ElectronWebview | null; }} src={initialUrl.current} preload={bridge.metadata.webviewPreloadPath} allow="hid" partition="persist:ajazz-official" />
+      {webviewError && <div className="webviewError"><strong>Official page failed to load</strong><span>{webviewError}</span><div className="actions compact"><button onClick={reloadCustomKeys}>Reload Custom Keys</button><button onClick={() => setModeRef.current("Docked")}>Open Official View</button></div></div>}
     </div>
   );
 });
@@ -633,6 +723,15 @@ function keyLabel(index: number): string {
 
 function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
+}
+
+function readInitialTheme(): string {
+  try {
+    const stored = localStorage.getItem("ak680-theme");
+    return stored && themes.includes(stored) ? stored : themes[0];
+  } catch {
+    return themes[0];
+  }
 }
 
 function safeWebviewUrl(webview: ElectronWebview | null): string {

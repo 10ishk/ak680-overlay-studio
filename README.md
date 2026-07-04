@@ -53,9 +53,9 @@ Connection status is derived from observed WebHID events, official DOM activity,
 - **Compact**: small inspector/debug view while the overlay is primary.
 - **Hidden**: official webview stays mounted and connected but visually de-emphasized.
 
-The webview remains mounted so official app state and WebHID connection can stay alive.
+The webview remains mounted so official app state and WebHID connection can stay alive. Switching pages, themes, or Docked/Compact/Hidden mode should not remount the official page.
 
-If the official view looks blank, use **Reload Custom Keys** or **Open Custom Keys** from the official view controls. The base official route can render a partial white page, so the overlay defaults to `/custom-keys`.
+If the official view looks blank, use **Reload** or **Open Custom Keys** from the official view toolbar. The base official route can render a partial white page, so the overlay defaults to `/custom-keys` and only tries one automatic redirect from `/` per app start.
 
 ## Overlay Controls
 
@@ -94,6 +94,8 @@ Diagnostics are secondary but still active. The guest preload observes:
 
 Exports include overlay action history, adapter command results, device/connect status, webview visibility mode, official route, capture session data, markers, and HID/DOM activity logs. Diagnostics are downloaded only when you click **Export Diagnostics** and are not uploaded or written automatically to the repo.
 
+Repeated DOM route/lifecycle diagnostics are throttled so the count should stay calm while idle. WebHID TX/RX packet observations are preserved because those are useful during real device testing.
+
 Export filenames use `ak680-overlay-diagnostics-YYYYMMDD-HHMMSS.json`.
 
 Do not commit raw logs, private traces, serial numbers, tokens, secrets, cookies, local paths, browser cache/session data, generated build artifacts, downloaded AJAZZ bundles, or official screenshots.
@@ -113,6 +115,7 @@ Do not commit raw logs, private traces, serial numbers, tokens, secrets, cookies
 ## Current Limitations
 
 - Live AJAZZ DOM selectors may need tuning as the official site changes.
+- The AJAZZ page may still render blank internal sections; the overlay reports that as adapter readiness not confirmed and keeps route controls available.
 - Some controls fall back to opening the official view when visible text or nearby sliders are not found.
 - Recalibrate may open an official modal; the overlay does not click Save Calibration or Clear Calibration automatically.
 - SOCD is route/find-only for now and does not configure SOCD settings.

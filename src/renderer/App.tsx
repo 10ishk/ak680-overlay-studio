@@ -574,8 +574,7 @@ function SettingsPage(props: { theme: string; setTheme: (theme: string) => void;
   const [stability, setStability] = useState(true);
   const [calibration, setCalibration] = useState(true);
   const applyDeviceSettings = async () => {
-    await props.api.runOverlayAction({ page: "Settings", action: `Return Rate ${returnRate}`, targetOfficialPath: officialPaths.settings, commandType: "clickByText", text: "Return Rate" });
-    await props.api.runOverlayAction({ page: "Settings", action: `Select ${returnRate}`, targetOfficialPath: officialPaths.settings, commandType: "clickByText", text: returnRate });
+    await props.api.runOverlayAction({ page: "Settings", action: `Return Rate ${returnRate}`, targetOfficialPath: officialPaths.settings, commandType: "setSelectByLabel", text: "Return Rate", value: returnRate });
     await props.api.runOverlayAction({ page: "Settings", action: `${stability ? "Enable" : "Disable"} Stability Mode`, targetOfficialPath: officialPaths.settings, commandType: "setToggleByLabel", text: "Stability Mode", value: stability });
     await props.api.runOverlayAction({ page: "Settings", action: `${calibration ? "Enable" : "Disable"} Adaptive Dynamic Calibration`, targetOfficialPath: officialPaths.settings, commandType: "setToggleByLabel", text: "Adaptive Dynamic Calibration", value: calibration });
   };

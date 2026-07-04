@@ -24,6 +24,7 @@ export type WebviewCommandType =
   | "clickBySelector"
   | "setInputValue"
   | "setRangeValue"
+  | "setSelectByLabel"
   | "setRadioByLabel"
   | "setToggleByLabel"
   | "getVisibleTextSnapshot"

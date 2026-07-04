@@ -48,6 +48,7 @@ type WebviewCommand = {
     | "clickBySelector"
     | "setInputValue"
     | "setRangeValue"
+    | "setSelectByLabel"
     | "setRadioByLabel"
     | "setToggleByLabel"
     | "getVisibleTextSnapshot"
@@ -392,6 +393,8 @@ async function runCommand(command: WebviewCommand): Promise<CommandResult> {
       return setInputValue(command);
     case "setRangeValue":
       return setRangeValue(command);
+    case "setSelectByLabel":
+      return setSelectByLabel(command);
     case "setRadioByLabel":
       return setChoiceByLabel(command, "radio");
     case "setToggleByLabel":
@@ -528,6 +531,40 @@ async function setRangeValue(command: WebviewCommand): Promise<CommandResult> {
   return baseResult(command, true, "Range value set through official DOM");
 }
 
+async function setSelectByLabel(command: WebviewCommand): Promise<CommandResult> {
+  const labelText = sanitizeText(command.text);
+  const optionText = sanitizeText(String(command.value ?? ""));
+  if (!labelText || !optionText) return baseResult(command, false, "Select label and option value are required");
+
+  let select: HTMLSelectElement | null = null;
+  await retryUntil(() => {
+    const input = findInputNearText(labelText);
+    select = input instanceof HTMLSelectElement ? input : null;
+    return Boolean(select);
+  }, Math.min(command.timeoutMs ?? 3500, 1200));
+
+  const targetSelect = select as HTMLSelectElement | null;
+  if (targetSelect) {
+    const option = Array.from(targetSelect.options).find((item) => includesText(item, optionText, true) || includesText(item, optionText));
+    if (!option) return baseResult(command, false, `Could not find option "${optionText}" near "${labelText}"`);
+    setDomValue(targetSelect, option.value);
+    return { ...baseResult(command, true, `Selected ${optionText} for ${labelText}`), matchedText: option.textContent ?? optionText, selector: "select" };
+  }
+
+  const opened = await clickLabeledSelectControl(labelText, command.timeoutMs);
+  if (!opened) return baseResult(command, false, `Could not open select control near "${labelText}"`);
+  let option: HTMLElement | null = null;
+  await retryUntil(() => {
+    option = findClickableByText(optionText);
+    return Boolean(option);
+  }, command.timeoutMs);
+  const target = option as HTMLElement | null;
+  if (!target) return baseResult(command, false, `Could not find option "${optionText}"`);
+  target.scrollIntoView({ block: "center", inline: "center" });
+  dispatchClickSequence(target);
+  return { ...baseResult(command, true, `Selected ${optionText} for ${labelText}`), matchedText: sanitizeText(target.textContent), selector: "dropdown option" };
+}
+
 async function waitForText(command: WebviewCommand): Promise<CommandResult> {
   const text = sanitizeText(command.text);
   if (!text) return baseResult(command, false, "No text provided");
@@ -640,6 +677,22 @@ function findClickableByText(text: string, tag?: string): HTMLElement | null {
   const textMatch = bestTextCandidate("button, a, [role='button'], [role='tab'], label, li, div, span", text);
   if (!textMatch) return null;
   return closestClickable(textMatch) ?? textMatch;
+}
+
+async function clickLabeledSelectControl(text: string, timeoutMs = 3500): Promise<boolean> {
+  let control: HTMLElement | null = null;
+  await retryUntil(() => {
+    const anchor = findByText(text);
+    const scope = anchor?.closest("section, article, li, form, fieldset, .card, .item, .row, div") ?? document.body;
+    control = bestElementCandidate(scope, "button, [role='button'], [role='combobox'], [aria-haspopup='listbox'], [aria-expanded], .select, .dropdown");
+    if (!control && anchor instanceof HTMLElement) control = closestClickable(anchor);
+    return Boolean(control);
+  }, timeoutMs);
+  const target = control as HTMLElement | null;
+  if (!target) return false;
+  target.scrollIntoView({ block: "center", inline: "center" });
+  dispatchClickSequence(target);
+  return true;
 }
 
 function includesText(element: Element, text: string, exact = false): boolean {

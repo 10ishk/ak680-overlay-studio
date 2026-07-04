@@ -482,7 +482,7 @@ function clickByText(command: WebviewCommand): CommandResult {
   const element = findClickableByText(text, command.tag);
   if (!element) return baseResult(command, false, `Could not find visible text "${text}"`);
   element.scrollIntoView({ block: "center", inline: "center" });
-  element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+  dispatchClickSequence(element);
   return { ...baseResult(command, true, `Clicked "${text}"`), matchedText: sanitizeText(element.textContent) };
 }
 
@@ -491,25 +491,21 @@ function clickBySelector(command: WebviewCommand): CommandResult {
   const element = document.querySelector(command.selector);
   if (!(element instanceof HTMLElement) || !isVisibleEnabled(element)) return baseResult(command, false, `Could not find visible enabled selector ${command.selector}`);
   element.scrollIntoView({ block: "center", inline: "center" });
-  element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+  dispatchClickSequence(element);
   return { ...baseResult(command, true, `Clicked selector ${command.selector}`), matchedText: sanitizeText(element.textContent) };
 }
 
 function setInputValue(command: WebviewCommand): CommandResult {
   const input = findInput(command);
   if (!input) return baseResult(command, false, "Could not find input");
-  setNativeValue(input, String(command.value ?? ""));
-  input.dispatchEvent(new Event("input", { bubbles: true }));
-  input.dispatchEvent(new Event("change", { bubbles: true }));
+  setDomValue(input, String(command.value ?? ""));
   return baseResult(command, true, "Input value set through official DOM");
 }
 
 function setRangeValue(command: WebviewCommand): CommandResult {
   const input = findInput(command, "range");
   if (!input) return baseResult(command, false, "Could not find range input");
-  setNativeValue(input, String(command.value ?? ""));
-  input.dispatchEvent(new Event("input", { bubbles: true }));
-  input.dispatchEvent(new Event("change", { bubbles: true }));
+  setDomValue(input, String(command.value ?? ""));
   return baseResult(command, true, "Range value set through official DOM");
 }
 
@@ -536,9 +532,7 @@ function setRangeByNearbyLabel(command: WebviewCommand): CommandResult {
     const range = findNearbyRange(label);
     if (range) {
       range.scrollIntoView({ block: "center", inline: "center" });
-      setNativeValue(range, String(command.value ?? ""));
-      range.dispatchEvent(new Event("input", { bubbles: true }));
-      range.dispatchEvent(new Event("change", { bubbles: true }));
+      setDomValue(range, String(command.value ?? ""));
       return { ...baseResult(command, true, `Set range near "${label}"`), matchedText: label, selector: "input[type='range']" };
     }
   }
@@ -553,7 +547,7 @@ function clickButtonNearText(command: WebviewCommand): CommandResult {
   const button = Array.from(scope.querySelectorAll("button, [role='button'], a")).find((item) => item instanceof HTMLElement && isVisibleEnabled(item));
   if (!(button instanceof HTMLElement)) return baseResult(command, false, `Could not find button near "${nearText}"`);
   button.scrollIntoView({ block: "center", inline: "center" });
-  button.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+  dispatchClickSequence(button);
   return { ...baseResult(command, true, `Clicked button near "${nearText}"`), matchedText: sanitizeText(button.textContent) };
 }
 
@@ -574,7 +568,7 @@ function setChoiceByLabel(command: WebviewCommand, mode: "radio" | "toggle"): Co
   const label = findChoiceByLabel(text);
   if (!(label instanceof HTMLElement)) return baseResult(command, false, `Could not find ${mode} label "${text}"`);
   label.scrollIntoView({ block: "center", inline: "center" });
-  label.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+  dispatchClickSequence(label);
   return { ...baseResult(command, true, `Selected ${text}`), matchedText: sanitizeText(label.textContent) };
 }
 
@@ -658,6 +652,33 @@ function findChoiceByLabel(text: string): HTMLElement | null {
 function isSupportedInput(element: unknown, type?: string): element is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement {
   if (!(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)) return false;
   return !type || element instanceof HTMLInputElement && element.type === type;
+}
+
+function dispatchClickSequence(element: HTMLElement): void {
+  const rect = element.getBoundingClientRect();
+  const clientX = rect.left + rect.width / 2;
+  const clientY = rect.top + rect.height / 2;
+  try {
+    element.focus({ preventScroll: true });
+  } catch {
+    element.focus();
+  }
+  for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
+    element.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window, clientX, clientY }));
+  }
+}
+
+function setDomValue(element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, value: string): void {
+  element.scrollIntoView({ block: "center", inline: "center" });
+  try {
+    element.focus({ preventScroll: true });
+  } catch {
+    element.focus();
+  }
+  setNativeValue(element, value);
+  element.dispatchEvent(new InputEvent("input", { bubbles: true, cancelable: true, data: value, inputType: "insertReplacementText" }));
+  element.dispatchEvent(new Event("change", { bubbles: true }));
+  element.blur();
 }
 
 function isVisibleEnabled(element: Element): boolean {

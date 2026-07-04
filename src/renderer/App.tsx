@@ -46,6 +46,8 @@ import {
   WebviewCommandResult,
   WebviewCommandType
 } from "./officialDriverController";
+import { KeyboardPreview } from "./components/KeyboardPreview";
+import { ak680Layout } from "./data/ak680Layout";
 import "./styles.css";
 
 type Page = "Dashboard" | "Lighting" | "Performance" | "Advanced Keys" | "SOCD" | "Keymap" | "Macros" | "Official Driver" | "Logs" | "Settings";
@@ -110,13 +112,6 @@ const macroTargets = ["F1", "F2", "F3", "F4", "Ins", "Del", "Home", "End"];
 const advancedModules = ["RS / Snappy", "DKS", "MT", "TGL"];
 const socdModes = ["Neutral", "Last Input Priority", "Absolute Priority", "Off"];
 const returnRates = ["125Hz", "250Hz", "500Hz", "1000Hz"];
-const ak680Rows = [
-  ["Esc", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "Backspace", "Home"],
-  ["Tab", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "[", "]", "\\", "Delete"],
-  ["Caps", "A", "S", "D", "F", "G", "H", "J", "K", "L", ";", "'", "Enter", "PgUp"],
-  ["Shift", "Z", "X", "C", "V", "B", "N", "M", "<", ">", "?", "Shift", "Up", "PgDn"],
-  ["Ctrl", "Win", "Alt", "Space", "Alt", "Fn", "Ctrl", "Left", "Down", "Right"]
-];
 
 console.log("AK680 renderer booted");
 
@@ -345,7 +340,7 @@ function App() {
         </header>
         <motion.main className="content" key={page} initial={{ opacity: 0, y: 10, scale: 0.99 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.22, ease: "easeOut" }}>{content}</motion.main>
       </section>
-      <aside className="logDrawer"><UtilityDrawer derived={derived} actions={logState.actions} events={logState.events} exportLogs={exportLogs} /></aside>
+      <aside className="statusRail"><UtilityDrawer derived={derived} actions={logState.actions} events={logState.events} exportLogs={exportLogs} /></aside>
       {toast && <div className="toast" onAnimationEnd={() => setToast(undefined)}>{toast}</div>}
       <OfficialWebviewHost ref={webviewRef} mode={logState.webviewMode} targetUrl={officialTargetUrl} addLogEvent={addLogEvent} updateOfficialUrl={updateOfficialUrl} openOfficialPath={openOfficialPath} setMode={changeWebviewMode} />
     </div>
@@ -360,7 +355,7 @@ function Dashboard(props: { api: OverlayApi; derived: ReturnType<typeof deriveLo
           <div className="deviceIdentity"><span className="deviceThumb" /><div><strong>AK680 V2</strong><p>{props.derived.deviceConnectStatus}</p></div></div>
           <div className="heroActions"><button className="primary" onClick={async () => { await props.api.runOverlayAction({ page: "Dashboard", action: "Detect official driver", targetOfficialPath: officialPaths.keymap, commandType: "detectOfficialState" }); await props.api.runOverlayAction({ page: "Dashboard", action: "Check remembered AK680 permission", targetOfficialPath: officialPaths.keymap, commandType: "getRememberedHidDevices" }); await props.api.runOverlayAction({ page: "Dashboard", action: "Connect AK680 V2", targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: "Connect", tag: "button" }); }}>Connect</button><button onClick={() => props.api.openOfficialPath(officialPaths.keymap, true)}>Official</button></div>
         </div>
-        <Ak680KeyboardVisual />
+        <KeyboardPreview accentColor="#7f8cff" lightingMode="rainbow" />
         <div className="showcaseStats">
           <StatusChip label="Route" value={props.derived.currentRoute} />
           <StatusChip label="Last" value={props.derived.lastOverlayAction?.status ?? "Idle"} tone={props.derived.lastOverlayAction?.status === "success" ? "good" : props.derived.lastOverlayAction?.status === "failure" ? "bad" : "idle"} />
@@ -377,25 +372,6 @@ function Dashboard(props: { api: OverlayApi; derived: ReturnType<typeof deriveLo
       </div>
     </div>
   );
-}
-
-function Ak680KeyboardVisual({ selected }: { selected?: string }) {
-  return (
-    <div className="ak680Stage" aria-label="AK680 keyboard preview">
-      <div className="ak680Handle" />
-      <div className="ak680Board">
-        {ak680Rows.map((row, rowIndex) => <div className="ak680Row" key={rowIndex}>{row.map((key, keyIndex) => <span className={`ak680Key ${keyClassName(key)} ${selected === key ? "selected" : ""}`} key={`${rowIndex}-${keyIndex}-${key}`}>{key}</span>)}</div>)}
-        <div className="ak680Knob" />
-      </div>
-    </div>
-  );
-}
-
-function keyClassName(key: string): string {
-  if (key === "Space") return "space";
-  if (key === "Backspace" || key === "Caps" || key === "Enter" || key === "Shift") return "wide";
-  if (key === "Tab" || key === "\\" || key === "Home" || key === "Delete" || key === "PgUp" || key === "PgDn") return "mid";
-  return "";
 }
 
 function StatusChip({ label, value, tone = "idle" }: { label: string; value: string; tone?: "good" | "bad" | "idle" }) {
@@ -509,28 +485,30 @@ function SocdPage({ api }: { api: OverlayApi }) {
 }
 
 function KeymapPage({ api }: { api: OverlayApi }) {
-  const [selected, setSelected] = useState("ESC");
+  const [selectedKeyId, setSelectedKeyId] = useState("esc");
   const [assignment, setAssignment] = useState("Backspace");
+  const selectedKey = ak680Layout.find((key) => key.id === selectedKeyId) ?? ak680Layout[0];
   const applyAssignment = async () => {
-    await api.runOverlayAction({ page: "Keymap", action: `Select ${selected}`, targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: selected });
+    await api.runOverlayAction({ page: "Keymap", action: `Select ${selectedKey.label}`, targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: selectedKey.label });
     const inputResult = await api.runOverlayAction({ page: "Keymap", action: `Search assignment ${assignment}`, targetOfficialPath: officialPaths.keymap, commandType: "setInputValue", text: "Key", value: assignment });
     if (!inputResult.success) {
       await api.runOverlayAction({ page: "Keymap", action: `Find assignment ${assignment}`, targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: assignment });
       return;
     }
-    await api.runOverlayAction({ page: "Keymap", action: `Apply ${assignment} to ${selected}`, targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: assignment });
+    await api.runOverlayAction({ page: "Keymap", action: `Apply ${assignment} to ${selectedKey.label}`, targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: assignment });
   };
   return (
     <div className="stack pageFade">
       <PageIntro title="Keymap" note="Pick a key, choose a common mapping, let the official driver apply it." path={officialPaths.keymap} api={api} />
       <div className="keymapLayout">
         <section className="keyboardCard">
-          <div className="keymapHeader"><span>Selected key</span><strong>{selected}</strong></div>
-          <div className="keys">{Array.from({ length: 68 }, (_, index) => <button key={index} className={selected === keyLabel(index) ? "active" : ""} onClick={() => setSelected(keyLabel(index))}>{keyLabel(index)}</button>)}</div>
+          <div className="keymapHeader"><span>Selected key</span><strong>{selectedKey.label}</strong></div>
+          <KeyboardPreview selectedKey={selectedKeyId} onKeySelect={(keyId) => setSelectedKeyId(keyId)} lightingMode="rainbow" accentColor="#7f8cff" />
         </section>
         <section className="panel assignmentPanel">
           <span>Assignment</span>
-          <strong>{selected} {"->"} {assignment}</strong>
+          <strong>{selectedKey.label} {"->"} {assignment}</strong>
+          <p>{selectedKey.type ?? "normal"} key selected</p>
           <select value={assignment} onChange={(event) => setAssignment(event.target.value)}>{keyAssignments.map((item) => <option key={item}>{item}</option>)}</select>
           <div className="assignmentGrid">{keyAssignments.slice(0, 8).map((item) => <button className={assignment === item ? "active" : ""} key={item} onClick={() => setAssignment(item)}>{item}</button>)}</div>
           <div className="actions"><button className="primary" onClick={applyAssignment}>Apply Mapping</button><button onClick={() => api.openOfficialPath(officialPaths.keymap, true)}>Official View</button></div>
@@ -871,7 +849,25 @@ function LogsPage(props: { events: OverlayLogEvent[]; actions: OverlayAction[]; 
 }
 
 function UtilityDrawer({ derived, actions, events, exportLogs }: { derived: ReturnType<typeof deriveLogState>; actions: OverlayAction[]; events: OverlayLogEvent[]; exportLogs: () => void }) {
-  return <div className="logs"><div className="drawerTitle"><h3>Diagnostics</h3><span className="sessionDot">Secondary</span></div><div className="miniStats"><span>{derived.deviceConnectStatus}</span><span>Route {derived.currentRoute}</span><span>Last {derived.lastOverlayAction?.status ?? "none"}</span><span>{events.length} activity events</span></div><ActionHistoryPanel actions={actions.slice(0, 5)} compact /><button onClick={exportLogs}>Export Diagnostics</button></div>;
+  return (
+    <div className="deviceRail">
+      <section className="railSection">
+        <span className="railLabel">Device Status</span>
+        <div className="railStatus"><span className="liveDot" />{derived.deviceConnectStatus}</div>
+        <div className="railMetric"><span>Official route</span><strong>{derived.currentRoute}</strong></div>
+        <div className="railMetric"><span>Activity</span><strong>{events.length}</strong></div>
+      </section>
+      <section className="railSection">
+        <span className="railLabel">Active Profile</span>
+        <div className="profilePill"><span>G</span><div><strong>Gaming Profile</strong><small>Default</small></div></div>
+      </section>
+      <section className="railSection">
+        <span className="railLabel">Recent Activity</span>
+        <ActionHistoryPanel actions={actions.slice(0, 4)} compact />
+        <button onClick={exportLogs}>Export Diagnostics</button>
+      </section>
+    </div>
+  );
 }
 
 function ActionHistoryPanel({ actions, compact = false }: { actions: OverlayAction[]; compact?: boolean }) {
@@ -925,10 +921,6 @@ function badgeClass(event: OverlayLogEvent): string {
 
 function Metric({ title, value, note }: { title: string; value: string; note: string }) {
   return <article className="panel"><span>{title}</span><strong>{value}</strong><p>{note}</p></article>;
-}
-
-function keyLabel(index: number): string {
-  return index === 0 ? "ESC" : index % 12 === 0 ? "Fn" : String(index + 1);
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

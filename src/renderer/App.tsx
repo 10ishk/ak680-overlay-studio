@@ -1,12 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Activity,
   Brush,
-  Cpu,
   Gauge,
   Keyboard,
-  Layers,
   ListTodo,
   MonitorUp,
   Settings,
@@ -16,6 +14,16 @@ import {
   Zap
 } from "lucide-react";
 import { getBridge } from "../bridge/ak680Bridge";
+import {
+  appendEvent,
+  appendMarker,
+  deriveLogState,
+  exportLogJson,
+  initialLogState,
+  normalizeGuestEvent,
+  OverlayLogEvent,
+  timestampFilename
+} from "./logStore";
 import "./styles.css";
 
 type Page =
@@ -30,11 +38,11 @@ type Page =
   | "Logs"
   | "Settings";
 
-type LogEvent = {
-  id: string;
-  type: string;
-  label: string;
-  createdAt: string;
+type Filter = "All" | "HID" | "DOM" | "Markers" | "Errors";
+
+type ElectronWebview = HTMLElement & {
+  getURL?: () => string;
+  reload?: () => void;
 };
 
 const bridge = getBridge();
@@ -57,50 +65,66 @@ const markerExamples = ["SOCD baseline", "SOCD ON", "SOCD OFF", "RT 1.2mm", "Lig
 function App() {
   const [page, setPage] = useState<Page>("Dashboard");
   const [theme, setTheme] = useState(themes[0]);
-  const [events, setEvents] = useState<LogEvent[]>([
-    { id: "boot", type: "system", label: "Overlay shell ready", createdAt: new Date().toISOString() }
-  ]);
+  const [logState, setLogState] = useState(initialLogState);
   const [marker, setMarker] = useState(markerExamples[0]);
-  const currentRoute = page === "Official Driver" ? "/" : "overlay/" + page.toLowerCase().replaceAll(" ", "-");
-  const lastAction = events[0]?.label ?? "Idle";
+  const derived = useMemo(() => deriveLogState(logState), [logState]);
 
-  function addMarker(label = marker) {
-    const next = bridge.logger.addMarker(label);
-    setEvents((items) => [next, ...items]);
-  }
+  const addLogEvent = useCallback((payload: unknown) => {
+    setLogState((state) => appendEvent(state, normalizeGuestEvent(payload, state.officialUrl)));
+  }, []);
 
-  function clearLogs() {
-    setEvents([]);
-  }
+  useEffect(() => {
+    return bridge.host?.onPermissionEvent((payload) => {
+      addLogEvent({
+        source: "host",
+        type: "permission",
+        phase: "event",
+        summary: "Host WebHID permission event",
+        ...asRecord(payload)
+      });
+    });
+  }, [addLogEvent]);
 
-  function exportLogs() {
-    const payload = bridge.logger.exportPlaceholder(events);
+  const addMarker = useCallback((label = marker) => {
+    setLogState((state) => appendMarker(state, label));
+  }, [marker]);
+
+  const clearLogs = useCallback(() => {
+    setLogState((state) => ({ ...state, events: [] }));
+  }, []);
+
+  const exportLogs = useCallback(() => {
+    const payload = exportLogJson(logState);
     const blob = new Blob([payload], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "ak680-overlay-logs-placeholder.json";
+    link.download = timestampFilename();
     link.click();
     URL.revokeObjectURL(url);
-  }
+  }, [logState]);
+
+  const updateOfficialUrl = useCallback((url: string, type = "navigation") => {
+    setLogState((state) => appendEvent({ ...state, officialUrl: url }, normalizeGuestEvent({ source: "host", type, phase: "event", url, summary: `Official webview ${type}` }, url)));
+  }, []);
 
   const content = useMemo(() => {
     if (page === "Dashboard") {
-      return <Dashboard setPage={setPage} addMarker={addMarker} exportLogs={exportLogs} clearLogs={clearLogs} lastAction={lastAction} />;
+      return <Dashboard setPage={setPage} addMarker={addMarker} exportLogs={exportLogs} clearLogs={clearLogs} derived={derived} />;
     }
     if (page === "Official Driver") {
-      return <OfficialDriver />;
+      return <OfficialDriver addLogEvent={addLogEvent} updateOfficialUrl={updateOfficialUrl} />;
     }
     if (page === "Logs") {
       return (
-        <LogsPanel
-          events={events}
+        <LogsPage
+          events={logState.events}
           marker={marker}
           setMarker={setMarker}
           addMarker={addMarker}
           exportLogs={exportLogs}
           clearLogs={clearLogs}
-          full
+          derived={derived}
         />
       );
     }
@@ -108,7 +132,7 @@ function App() {
       return <SettingsPage theme={theme} setTheme={setTheme} exportLogs={exportLogs} clearLogs={clearLogs} />;
     }
     return <FeaturePage page={page} setPage={setPage} />;
-  }, [page, events, marker, theme, lastAction]);
+  }, [page, addMarker, exportLogs, clearLogs, derived, addLogEvent, updateOfficialUrl, logState.events, marker, theme]);
 
   return (
     <div className="app" data-theme={theme.toLowerCase().replaceAll(" ", "-")}>
@@ -140,9 +164,9 @@ function App() {
             <p>Official driver wrapper for {bridge.metadata.targetDevice}</p>
           </div>
           <div className="statusRow">
-            <span className="pill good">AK680 V2 target</span>
-            <span className="pill">Route {currentRoute}</span>
-            <span className="pill">{events.length} events</span>
+            <span className="pill good">{derived.connectedDeviceStatus}</span>
+            <span className="pill">Route {derived.currentRoute}</span>
+            <span className="pill">{derived.eventCount} events</span>
             <select value={theme} onChange={(event) => setTheme(event.target.value)}>
               {themes.map((item) => <option key={item}>{item}</option>)}
             </select>
@@ -152,13 +176,14 @@ function App() {
       </section>
 
       <aside className="logDrawer">
-        <LogsPanel
-          events={events}
+        <LiveLogs
+          events={logState.events}
           marker={marker}
           setMarker={setMarker}
           addMarker={addMarker}
           exportLogs={exportLogs}
           clearLogs={clearLogs}
+          derived={derived}
         />
       </aside>
     </div>
@@ -170,25 +195,25 @@ function Dashboard(props: {
   addMarker: () => void;
   exportLogs: () => void;
   clearLogs: () => void;
-  lastAction: string;
+  derived: ReturnType<typeof deriveLogState>;
 }) {
   return (
     <div className="stack">
       <section className="hero">
         <div>
-          <span className="eyebrow">Overlay prototype</span>
+          <span className="eyebrow">Overlay logger active</span>
           <h2>AK680 V2 control stays inside the official webview.</h2>
-          <p>This shell observes, labels, and prepares future route adapters without native HID writes or packet sending.</p>
+          <p>This shell observes WebHID and page activity, labels sessions, and exports logs without native HID writes or packet sending.</p>
         </div>
         <button className="primary" onClick={() => props.setPage("Official Driver")}>Open Official Driver</button>
       </section>
       <div className="grid three">
-        <Metric title="Official Driver status" value="Ready" note="Visible webview available" />
-        <Metric title="WebHID permission" value="AJAZZ origin only" note="VID 3141 / PID 32956 target" />
-        <Metric title="Logging status" value="Placeholder" note="Manual markers enabled" />
-        <Metric title="Last action" value={props.lastAction} note="Local event state" />
-        <Metric title="Last TX packet" value="none" note="No packet sender in MVP" />
-        <Metric title="Last RX packet" value="none" note="Real interception comes later" />
+        <Metric title="Official Driver status" value="Ready" note="Visible webview with guest preload logger" />
+        <Metric title="WebHID permission" value="AJAZZ origin only" note="https://ajazz.driveall.cn/" />
+        <Metric title="Logging status" value={`${props.derived.eventCount} events`} note={`${props.derived.markersCount} manual markers`} />
+        <Metric title="Last action" value={props.derived.lastAction} note="Latest event summary" />
+        <Metric title="Last TX packet" value={props.derived.lastTxPacket} note="Observed sendReport/sendFeatureReport only" />
+        <Metric title="Last RX packet" value={props.derived.lastRxPacket} note="Observed inputreport/feature receive only" />
       </div>
       <div className="actions">
         <button onClick={() => props.setPage("Official Driver")}>Open Official Driver</button>
@@ -200,12 +225,41 @@ function Dashboard(props: {
   );
 }
 
-function OfficialDriver() {
+function OfficialDriver(props: { addLogEvent: (payload: unknown) => void; updateOfficialUrl: (url: string, type?: string) => void }) {
+  const webviewRef = useRef<ElectronWebview | null>(null);
+
+  useEffect(() => {
+    const webview = webviewRef.current;
+    if (!webview) return;
+    const handleIpcMessage = (event: Event) => {
+      const detail = event as Event & { channel?: string; args?: unknown[] };
+      if (detail.channel === "ak680-log-event") props.addLogEvent(detail.args?.[0]);
+    };
+    const handleNavigate = (event: Event) => props.updateOfficialUrl((event.currentTarget as ElectronWebview).getURL?.() ?? bridge.metadata.officialDriverUrl, event.type);
+
+    webview.addEventListener("ipc-message", handleIpcMessage);
+    webview.addEventListener("did-navigate", handleNavigate);
+    webview.addEventListener("did-navigate-in-page", handleNavigate);
+    webview.addEventListener("page-title-updated", handleNavigate);
+    return () => {
+      webview.removeEventListener("ipc-message", handleIpcMessage);
+      webview.removeEventListener("did-navigate", handleNavigate);
+      webview.removeEventListener("did-navigate-in-page", handleNavigate);
+      webview.removeEventListener("page-title-updated", handleNavigate);
+    };
+  }, [props]);
+
   return (
     <div className="stack">
       <div className="notice">The official webview performs real keyboard communication. AK680 Overlay Studio observes and logs only.</div>
       <div className="webviewFrame">
-        <webview src={bridge.metadata.officialDriverUrl} allow="hid" partition="persist:ajazz-official" />
+        <webview
+          ref={(node) => { webviewRef.current = node as ElectronWebview | null; }}
+          src={bridge.metadata.officialDriverUrl}
+          preload={bridge.metadata.webviewPreloadPath}
+          allow="hid"
+          partition="persist:ajazz-official"
+        />
       </div>
     </div>
   );
@@ -267,7 +321,7 @@ function SettingsPage(props: { theme: string; setTheme: (theme: string) => void;
       <section className="pageIntro"><h2>Settings</h2><p>Local shell preferences and logging controls for the prototype.</p></section>
       <div className="grid two">
         <div className="panel"><label>Theme</label><select value={props.theme} onChange={(event) => props.setTheme(event.target.value)}>{themes.map((item) => <option key={item}>{item}</option>)}</select></div>
-        <Metric title="Logging settings" value="Placeholder" note="Manual markers only" />
+        <Metric title="Logging settings" value="Live observer" note="WebHID, DOM activity, and manual markers" />
         <Metric title="Safety notes" value="No reset button" note="No native HID writes or packet sender" />
         <div className="actions"><button onClick={props.exportLogs}>Export Logs</button><button onClick={props.clearLogs}>Clear Logs</button></div>
       </div>
@@ -275,48 +329,125 @@ function SettingsPage(props: { theme: string; setTheme: (theme: string) => void;
   );
 }
 
-function LogsPanel(props: {
-  events: LogEvent[];
+function LiveLogs(props: {
+  events: OverlayLogEvent[];
   marker: string;
   setMarker: (marker: string) => void;
   addMarker: () => void;
   exportLogs: () => void;
   clearLogs: () => void;
-  full?: boolean;
+  derived: ReturnType<typeof deriveLogState>;
 }) {
+  const [filter, setFilter] = useState<Filter>("All");
+  const events = filterEvents(props.events, filter).slice(0, 20);
   return (
-    <div className={props.full ? "logs full" : "logs"}>
+    <div className="logs">
       <h3>Live Logs</h3>
       <div className="miniStats">
-        <span>{props.events.length} events</span>
-        <span>Route /</span>
-        <span>TX none</span>
-        <span>RX none</span>
-        <span>Device target ready</span>
+        <span>{props.derived.eventCount} events</span>
+        <span>Route {props.derived.currentRoute}</span>
+        <span>TX {props.derived.lastTxPacket}</span>
+        <span>RX {props.derived.lastRxPacket}</span>
+        <span>{props.derived.connectedDeviceStatus}</span>
       </div>
-      <input list="markers" value={props.marker} onChange={(event) => props.setMarker(event.target.value)} />
-      <datalist id="markers">{markerExamples.map((item) => <option key={item} value={item} />)}</datalist>
+      <FilterTabs filter={filter} setFilter={setFilter} />
+      <MarkerInput marker={props.marker} setMarker={props.setMarker} addMarker={props.addMarker} />
       <div className="actions compact">
-        <button onClick={props.addMarker}>Add Marker</button>
         <button onClick={props.exportLogs}>Export JSON</button>
         <button onClick={props.clearLogs}>Clear Log</button>
       </div>
-      <div className="eventList">
-        {props.events.length === 0 && <div className="empty">No log events yet.</div>}
-        {props.events.map((event) => (
-          <div className="event" key={event.id}>
-            <span>{event.type}</span>
-            <strong>{event.label}</strong>
-            <time>{new Date(event.createdAt).toLocaleTimeString()}</time>
-          </div>
-        ))}
-      </div>
+      <EventList events={events} compact />
     </div>
   );
 }
 
+function LogsPage(props: {
+  events: OverlayLogEvent[];
+  marker: string;
+  setMarker: (marker: string) => void;
+  addMarker: () => void;
+  exportLogs: () => void;
+  clearLogs: () => void;
+  derived: ReturnType<typeof deriveLogState>;
+}) {
+  const [filter, setFilter] = useState<Filter>("All");
+  const events = filterEvents(props.events, filter);
+  return (
+    <div className="logs full">
+      <div className="logsHeader">
+        <div>
+          <h2>Logs</h2>
+          <p>{props.derived.eventCount} events captured from the official webview session.</p>
+        </div>
+        <div className="actions">
+          <button onClick={props.exportLogs}>Export JSON</button>
+          <button onClick={props.clearLogs}>Clear Logs</button>
+        </div>
+      </div>
+      <div className="miniStats wide">
+        <span>Route {props.derived.currentRoute}</span>
+        <span>Last action {props.derived.lastAction}</span>
+        <span>TX {props.derived.lastTxPacket}</span>
+        <span>RX {props.derived.lastRxPacket}</span>
+      </div>
+      <FilterTabs filter={filter} setFilter={setFilter} />
+      <MarkerInput marker={props.marker} setMarker={props.setMarker} addMarker={props.addMarker} />
+      <EventList events={events} />
+    </div>
+  );
+}
+
+function MarkerInput(props: { marker: string; setMarker: (marker: string) => void; addMarker: () => void }) {
+  return (
+    <div className="markerInput">
+      <input list="markers" value={props.marker} onChange={(event) => props.setMarker(event.target.value)} />
+      <datalist id="markers">{markerExamples.map((item) => <option key={item} value={item} />)}</datalist>
+      <button onClick={props.addMarker}>Add Marker</button>
+    </div>
+  );
+}
+
+function FilterTabs(props: { filter: Filter; setFilter: (filter: Filter) => void }) {
+  const filters: Filter[] = ["All", "HID", "DOM", "Markers", "Errors"];
+  return (
+    <div className="filterTabs">
+      {filters.map((filter) => <button key={filter} className={props.filter === filter ? "active" : ""} onClick={() => props.setFilter(filter)}>{filter}</button>)}
+    </div>
+  );
+}
+
+function EventList({ events, compact = false }: { events: OverlayLogEvent[]; compact?: boolean }) {
+  return (
+    <div className={compact ? "eventList compactList" : "eventTable"}>
+      {events.length === 0 && <div className="empty">No matching log events yet.</div>}
+      {events.map((event) => (
+        <div className="event" key={event.id}>
+          <time>{new Date(event.timestamp).toLocaleTimeString()}</time>
+          <span className={`source ${event.source}`}>{event.source}</span>
+          <strong>{event.summary}</strong>
+          {!compact && <span>{event.reportId !== undefined ? `r${event.reportId}` : "-"}</span>}
+          {!compact && <span>{event.length !== undefined ? `${event.length} bytes` : "-"}</span>}
+          {!compact && <code>{event.hex ? event.hex.split(" ").slice(0, 16).join(" ") : event.markerLabel ?? event.text ?? "-"}</code>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function filterEvents(events: OverlayLogEvent[], filter: Filter): OverlayLogEvent[] {
+  if (filter === "HID") return events.filter((event) => event.source === "webhid");
+  if (filter === "DOM") return events.filter((event) => event.source === "dom");
+  if (filter === "Markers") return events.filter((event) => event.source === "marker");
+  if (filter === "Errors") return events.filter((event) => event.phase === "error" || Boolean(event.error));
+  return events;
+}
+
 function Metric({ title, value, note }: { title: string; value: string; note: string }) {
   return <article className="panel"><span>{title}</span><strong>{value}</strong><p>{note}</p></article>;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
 }
 
 createRoot(document.getElementById("root")!).render(<App />);

@@ -13,26 +13,38 @@ function isAjazzOrigin(url: string): boolean {
   }
 }
 
-function configurePermissions(): void {
+type PermissionEvent = {
+  type: string;
+  permission?: string;
+  origin?: string;
+  allowed: boolean;
+  timestamp: string;
+};
+
+function configurePermissions(notify: (event: PermissionEvent) => void): void {
   const ses = session.defaultSession;
 
   ses.setPermissionRequestHandler((webContents, permission, callback, details) => {
     const requestingUrl = details.requestingUrl || webContents.getURL();
     if (String(permission) === "hid" && isAjazzOrigin(requestingUrl)) {
+      notify({ type: "permission-request", permission: String(permission), origin: requestingUrl, allowed: true, timestamp: new Date().toISOString() });
       callback(true);
       return;
     }
+    notify({ type: "permission-request", permission: String(permission), origin: requestingUrl, allowed: false, timestamp: new Date().toISOString() });
     callback(false);
   });
 
   ses.setDevicePermissionHandler((details) => {
-    return details.deviceType === "hid" && isAjazzOrigin(details.origin);
+    const allowed = details.deviceType === "hid" && isAjazzOrigin(details.origin);
+    notify({ type: "device-permission", permission: details.deviceType, origin: details.origin, allowed, timestamp: new Date().toISOString() });
+    return allowed;
   });
 
   ses.setUSBProtectedClassesHandler(() => []);
 }
 
-function createWindow(): void {
+function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1440,
     height: 920,
@@ -55,15 +67,26 @@ function createWindow(): void {
   } else {
     void win.loadFile(path.join(__dirname, "../renderer/index.html"));
   }
+
+  return win;
 }
 
 app.whenReady().then(() => {
-  configurePermissions();
-  createWindow();
+  const windows = new Set<BrowserWindow>();
+  configurePermissions((event) => {
+    for (const win of windows) {
+      win.webContents.send("ak680-permission-event", event);
+    }
+  });
+  const firstWindow = createWindow();
+  windows.add(firstWindow);
+  firstWindow.on("closed", () => windows.delete(firstWindow));
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+      const win = createWindow();
+      windows.add(win);
+      win.on("closed", () => windows.delete(win));
     }
   });
 });

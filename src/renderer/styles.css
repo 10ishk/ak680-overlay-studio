@@ -120,11 +120,27 @@ webview { display: block; width: 100%; height: 100%; border-radius: 16px; backgr
 
 .logs { display: grid; gap: 12px; }
 .logs.full { background: var(--panel); border: 1px solid var(--border); border-radius: 24px; padding: 18px; }
+.logsHeader { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+.logsHeader p { color: var(--muted); margin-top: 6px; }
 .miniStats { display: grid; gap: 8px; color: var(--muted); font-size: 12px; }
+.miniStats.wide { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .logs input { width: 100%; }
+.markerInput { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.filterTabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.filterTabs button { padding: 7px 9px; font-size: 12px; border-radius: 999px; }
+.filterTabs button.active { background: var(--accent-soft); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 42%, transparent); }
 .eventList { display: grid; gap: 8px; max-height: 54vh; overflow: auto; }
-.event { display: grid; gap: 5px; padding: 12px; border: 1px solid var(--border); border-radius: 14px; background: rgba(255,255,255,0.045); }
+.eventTable { display: grid; gap: 8px; max-height: 62vh; overflow: auto; }
+.event { display: grid; grid-template-columns: 74px 72px minmax(180px, 1fr) 48px 78px minmax(150px, 1fr); gap: 8px; align-items: center; padding: 12px; border: 1px solid var(--border); border-radius: 14px; background: rgba(255,255,255,0.045); }
+.compactList .event { grid-template-columns: 64px 64px minmax(0, 1fr); align-items: start; }
 .event span, .event time, .empty { color: var(--muted); font-size: 12px; }
+.event strong { font-size: 13px; overflow-wrap: anywhere; }
+.event code { color: #d8dee9; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.source { width: max-content; border-radius: 999px; border: 1px solid var(--border); padding: 4px 7px; text-transform: uppercase; }
+.source.webhid { color: var(--accent); background: var(--accent-soft); }
+.source.dom { color: #8fdcff; }
+.source.marker { color: #9bd67b; }
+.source.host { color: #d9dee8; }
 
 @media (max-width: 1180px) {
   .app { grid-template-columns: 210px minmax(0, 1fr); }
@@ -141,5 +157,6 @@ webview { display: block; width: 100%; height: 100%; border-radius: 16px; backgr
   .grid.three, .grid.two { grid-template-columns: 1fr; }
   .content { overflow: visible; }
   .control { grid-template-columns: 1fr; }
+  .miniStats.wide, .event, .markerInput { grid-template-columns: 1fr; }
   h2 { font-size: 24px; }
 }

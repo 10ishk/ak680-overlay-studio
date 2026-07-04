@@ -2,6 +2,7 @@ export type Ak680Metadata = {
   name: string;
   version: string;
   officialDriverUrl: string;
+  webviewPreloadPath?: string;
   targetDevice: string;
   vid: number;
   pid: number;
@@ -20,6 +21,9 @@ export type Ak680Bridge = {
     addMarker(label: string): LogMarker;
     exportPlaceholder(events: unknown[]): string;
   };
+  host?: {
+    onPermissionEvent(callback: (event: unknown) => void): () => void;
+  };
 };
 
 declare global {
@@ -35,6 +39,7 @@ export function getBridge(): Ak680Bridge {
         name: "AK680 Overlay Studio",
         version: "0.1.0",
         officialDriverUrl: "https://ajazz.driveall.cn/",
+        webviewPreloadPath: undefined,
         targetDevice: "AJAZZ AK680 V2",
         vid: 3141,
         pid: 32956

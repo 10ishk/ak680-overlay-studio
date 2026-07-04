@@ -105,21 +105,101 @@ h3 { font-size: 16px; margin-bottom: 14px; }
   align-items: center;
   padding: 26px;
 }
-.dashboardHero {
-  min-height: 260px;
-  position: relative;
+.keyboardShowcase {
+  min-height: 430px;
+  display: grid;
+  gap: 22px;
+  padding: 24px 28px 28px;
+  border: 1px solid var(--border);
+  border-radius: 28px;
   overflow: hidden;
   background:
-    linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02)),
-    linear-gradient(145deg, rgba(255, 138, 61, 0.2), rgba(57, 167, 255, 0.08) 48%, rgba(0,0,0,0.08));
+    radial-gradient(circle at 18% 20%, rgba(77,111,255,0.18), transparent 28%),
+    radial-gradient(circle at 78% 22%, rgba(255,77,166,0.14), transparent 30%),
+    linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.025)),
+    rgba(13, 16, 22, 0.86);
+  box-shadow: 0 28px 90px rgba(0,0,0,0.28);
 }
-.dashboardHero::after {
-  content: "";
+.showcaseTop, .showcaseStats { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; }
+.deviceIdentity { display: flex; align-items: center; gap: 14px; }
+.deviceIdentity strong { font-size: 20px; }
+.deviceIdentity p { color: var(--muted); margin-top: 4px; }
+.deviceThumb {
+  width: 54px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.22) 0 2px, transparent 2px 6px),
+    linear-gradient(135deg, #171a22, #08090d);
+  box-shadow: inset 0 0 0 4px rgba(0,0,0,0.22);
+}
+.ak680Stage { position: relative; display: grid; place-items: center; min-height: 250px; perspective: 900px; }
+.ak680Handle {
   position: absolute;
-  inset: auto 28px 22px 28px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 55%, white), transparent);
-  opacity: 0.7;
+  left: max(6px, 3%);
+  width: 14px;
+  height: 66px;
+  border: 4px solid rgba(255,255,255,0.78);
+  border-right: 0;
+  border-radius: 10px 0 0 10px;
+  opacity: 0.75;
+}
+.ak680Board {
+  position: relative;
+  width: min(100%, 980px);
+  display: grid;
+  gap: 7px;
+  padding: 22px 64px 22px 24px;
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 20px;
+  background:
+    linear-gradient(110deg, rgba(90,70,160,0.28), rgba(18,21,28,0.92) 42%, rgba(255,72,130,0.16)),
+    #0b0d12;
+  box-shadow:
+    0 34px 70px rgba(0,0,0,0.42),
+    0 0 70px rgba(66,130,255,0.16),
+    inset 0 1px 0 rgba(255,255,255,0.2);
+  transform: rotateX(4deg);
+}
+.ak680Row { display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 7px; }
+.ak680Key {
+  min-height: 45px;
+  display: grid;
+  place-items: center;
+  padding: 0 8px;
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 8px;
+  color: #eef3ff;
+  font-size: 12px;
+  font-weight: 700;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.13), rgba(255,255,255,0.03)),
+    #121520;
+  box-shadow:
+    0 0 14px color-mix(in srgb, var(--accent) 40%, transparent),
+    inset 0 -9px 18px rgba(0,0,0,0.28),
+    inset 0 1px 0 rgba(255,255,255,0.12);
+}
+.ak680Key:nth-child(5n+1) { box-shadow: 0 0 14px rgba(110,82,255,0.42), inset 0 -9px 18px rgba(0,0,0,0.28); }
+.ak680Key:nth-child(5n+2) { box-shadow: 0 0 14px rgba(0,220,170,0.38), inset 0 -9px 18px rgba(0,0,0,0.28); }
+.ak680Key:nth-child(5n+3) { box-shadow: 0 0 14px rgba(44,160,255,0.38), inset 0 -9px 18px rgba(0,0,0,0.28); }
+.ak680Key:nth-child(5n+4) { box-shadow: 0 0 14px rgba(255,192,74,0.34), inset 0 -9px 18px rgba(0,0,0,0.28); }
+.ak680Key:nth-child(5n+5) { box-shadow: 0 0 14px rgba(255,77,145,0.38), inset 0 -9px 18px rgba(0,0,0,0.28); }
+.ak680Key.wide { grid-column: span 2; }
+.ak680Key.mid { grid-column: span 1; font-size: 10px; }
+.ak680Key.space { grid-column: span 7; }
+.ak680Key.selected { outline: 2px solid var(--accent); color: var(--accent); }
+.ak680Knob {
+  position: absolute;
+  top: 22px;
+  right: 18px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, rgba(255,255,255,0.2), transparent 24%), #050609;
+  border: 1px solid rgba(255,255,255,0.2);
+  box-shadow: inset -8px -10px 20px rgba(0,0,0,0.7), 0 0 24px rgba(255,255,255,0.1);
 }
 .heroActions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
 .eyebrow { display: inline-block; color: var(--accent); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 12px; font-weight: 800; }

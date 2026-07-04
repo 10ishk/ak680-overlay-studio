@@ -110,6 +110,13 @@ const macroTargets = ["F1", "F2", "F3", "F4", "Ins", "Del", "Home", "End"];
 const advancedModules = ["RS / Snappy", "DKS", "MT", "TGL"];
 const socdModes = ["Neutral", "Last Input Priority", "Absolute Priority", "Off"];
 const returnRates = ["125Hz", "250Hz", "500Hz", "1000Hz"];
+const ak680Rows = [
+  ["Esc", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "Backspace", "Home"],
+  ["Tab", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "[", "]", "\\", "Delete"],
+  ["Caps", "A", "S", "D", "F", "G", "H", "J", "K", "L", ";", "'", "Enter", "PgUp"],
+  ["Shift", "Z", "X", "C", "V", "B", "N", "M", "<", ">", "?", "Shift", "Up", "PgDn"],
+  ["Ctrl", "Win", "Alt", "Space", "Alt", "Fn", "Ctrl", "Left", "Down", "Right"]
+];
 
 console.log("AK680 renderer booted");
 
@@ -348,17 +355,17 @@ function App() {
 function Dashboard(props: { api: OverlayApi; derived: ReturnType<typeof deriveLogState>; session: { active: boolean }; startSession: () => void; stopSession: () => void }) {
   return (
     <div className="dashboard pageFade">
-      <section className="hero dashboardHero">
-        <div>
-          <span className="eyebrow">AK680 V2</span>
-          <h2>Clean controls. Official driver underneath.</h2>
-          <div className="statusChips">
-            <StatusChip label="Device" value={props.derived.deviceConnectStatus} tone={props.derived.deviceConnectStatus === "Connected" ? "good" : "idle"} />
-            <StatusChip label="Route" value={props.derived.currentRoute} />
-            <StatusChip label="Last" value={props.derived.lastOverlayAction?.status ?? "Idle"} tone={props.derived.lastOverlayAction?.status === "success" ? "good" : props.derived.lastOverlayAction?.status === "failure" ? "bad" : "idle"} />
-          </div>
+      <section className="keyboardShowcase">
+        <div className="showcaseTop">
+          <div className="deviceIdentity"><span className="deviceThumb" /><div><strong>AK680 V2</strong><p>{props.derived.deviceConnectStatus}</p></div></div>
+          <div className="heroActions"><button className="primary" onClick={async () => { await props.api.runOverlayAction({ page: "Dashboard", action: "Detect official driver", targetOfficialPath: officialPaths.keymap, commandType: "detectOfficialState" }); await props.api.runOverlayAction({ page: "Dashboard", action: "Check remembered AK680 permission", targetOfficialPath: officialPaths.keymap, commandType: "getRememberedHidDevices" }); await props.api.runOverlayAction({ page: "Dashboard", action: "Connect AK680 V2", targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: "Connect", tag: "button" }); }}>Connect</button><button onClick={() => props.api.openOfficialPath(officialPaths.keymap, true)}>Official</button></div>
         </div>
-        <div className="heroActions"><button className="primary" onClick={async () => { await props.api.runOverlayAction({ page: "Dashboard", action: "Detect official driver", targetOfficialPath: officialPaths.keymap, commandType: "detectOfficialState" }); await props.api.runOverlayAction({ page: "Dashboard", action: "Check remembered AK680 permission", targetOfficialPath: officialPaths.keymap, commandType: "getRememberedHidDevices" }); await props.api.runOverlayAction({ page: "Dashboard", action: "Connect AK680 V2", targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: "Connect", tag: "button" }); }}>Connect</button><button onClick={() => props.api.openOfficialPath(officialPaths.keymap, true)}>Official</button></div>
+        <Ak680KeyboardVisual />
+        <div className="showcaseStats">
+          <StatusChip label="Route" value={props.derived.currentRoute} />
+          <StatusChip label="Last" value={props.derived.lastOverlayAction?.status ?? "Idle"} tone={props.derived.lastOverlayAction?.status === "success" ? "good" : props.derived.lastOverlayAction?.status === "failure" ? "bad" : "idle"} />
+          <StatusChip label="Events" value={`${props.derived.eventCount}`} />
+        </div>
       </section>
       <div className="commandGrid">
         <CommandTile title="Lighting" meta="Effects, color, speed" onClick={() => props.api.openOfficialPath(officialPaths.lighting)} />
@@ -370,6 +377,25 @@ function Dashboard(props: { api: OverlayApi; derived: ReturnType<typeof deriveLo
       </div>
     </div>
   );
+}
+
+function Ak680KeyboardVisual({ selected }: { selected?: string }) {
+  return (
+    <div className="ak680Stage" aria-label="AK680 keyboard preview">
+      <div className="ak680Handle" />
+      <div className="ak680Board">
+        {ak680Rows.map((row, rowIndex) => <div className="ak680Row" key={rowIndex}>{row.map((key, keyIndex) => <span className={`ak680Key ${keyClassName(key)} ${selected === key ? "selected" : ""}`} key={`${rowIndex}-${keyIndex}-${key}`}>{key}</span>)}</div>)}
+        <div className="ak680Knob" />
+      </div>
+    </div>
+  );
+}
+
+function keyClassName(key: string): string {
+  if (key === "Space") return "space";
+  if (key === "Backspace" || key === "Caps" || key === "Enter" || key === "Shift") return "wide";
+  if (key === "Tab" || key === "\\" || key === "Home" || key === "Delete" || key === "PgUp" || key === "PgDn") return "mid";
+  return "";
 }
 
 function StatusChip({ label, value, tone = "idle" }: { label: string; value: string; tone?: "good" | "bad" | "idle" }) {

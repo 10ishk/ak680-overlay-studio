@@ -107,6 +107,8 @@ const colors = ["#ff7a1a", "#39a7ff", "#a78bfa", "#9bd67b", "#ffffff", "#ff4d6d"
 const keyAssignments = ["Esc", "Tab", "Caps Lock", "Left Shift", "Left Ctrl", "Left Alt", "Space", "Backspace", "Enter", "Delete", "Home", "End", "Page Up", "Page Down"];
 const macroSlots = ["Game Push", "Layer Tap", "Media Stack", "Rapid Utility"];
 const macroTargets = ["F1", "F2", "F3", "F4", "Ins", "Del", "Home", "End"];
+const advancedModules = ["RS / Snappy", "DKS", "MT", "TGL"];
+const socdModes = ["Neutral", "Last Input Priority", "Absolute Priority", "Off"];
 
 console.log("AK680 renderer booted");
 
@@ -427,11 +429,56 @@ function PerformancePage({ api, derived }: { api: OverlayApi; derived: ReturnTyp
 }
 
 function AdvancedKeysPage({ api }: { api: OverlayApi }) {
-  return <RouteCards page="Advanced Keys" path={officialPaths.advancedKeys} api={api} cards={["RS / Snappy", "SOCD", "DKS", "MT", "TGL"]} />;
+  const [module, setModule] = useState(advancedModules[0]);
+  const [actuation, setActuation] = useState(18);
+  const openModule = (name = module) => api.runOverlayAction({ page: "Advanced Keys", action: `Open ${name}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: name === "RS / Snappy" ? "RS" : name });
+  return (
+    <div className="stack pageFade">
+      <PageIntro title="Advanced Keys" note="Tune advanced key behavior through the official driver." path={officialPaths.advancedKeys} api={api} />
+      <div className="advancedWorkspace">
+        <section className="panel advancedModulePanel">
+          <span>Module</span>
+          <strong>{module}</strong>
+          <div className="moduleGrid">{advancedModules.map((item) => <button className={module === item ? "active" : ""} key={item} onClick={() => { setModule(item); void openModule(item); }}>{item}</button>)}</div>
+        </section>
+        <section className="advancedActions">
+          <ControlPanel title="Trigger Point" value={actuation} setValue={setActuation} onApply={async (value) => { await openModule(); await api.runOverlayAction({ page: "Advanced Keys", action: `${module} Trigger ${value}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "setRangeByNearbyLabel", text: module, nearText: "Trigger", value }); }} />
+          <button className="panel actionPanel" onClick={async () => { await openModule(); await api.runOverlayAction({ page: "Advanced Keys", action: `Enable ${module}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "setToggleByLabel", text: "Enable" }); }}><span>Toggle</span><strong>Enable</strong><p>Turns on the selected module if the official toggle is visible.</p></button>
+          <button className="panel actionPanel" onClick={async () => { await openModule(); await api.runOverlayAction({ page: "Advanced Keys", action: `Save ${module}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: "Save" }); }}><span>Commit</span><strong>Save</strong><p>Uses the official driver save action.</p></button>
+        </section>
+      </div>
+    </div>
+  );
 }
 
 function SocdPage({ api }: { api: OverlayApi }) {
-  return <div className="stack pageFade"><PageIntro title="SOCD" note="Conservative route-backed helper. No SOCD packet logic or automation." path={officialPaths.advancedKeys} api={api} /><div className="grid two"><button className="panel actionPanel" onClick={() => api.openOfficialPath(officialPaths.advancedKeys, true)}><span>Official route</span><strong>Open SOCD in Official Driver</strong><p>Use official page for final action.</p></button><button className="panel actionPanel" onClick={() => api.runOverlayAction({ page: "SOCD", action: "Find SOCD Panel", targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: "SOCD" })}><span>Best-effort</span><strong>Find SOCD Panel</strong><p>Clicks visible SOCD text if found.</p></button></div></div>;
+  const [mode, setMode] = useState(socdModes[0]);
+  const applyMode = async () => {
+    await api.runOverlayAction({ page: "SOCD", action: "Open SOCD panel", targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: "SOCD" });
+    if (mode === "Off") {
+      await api.runOverlayAction({ page: "SOCD", action: "Disable SOCD", targetOfficialPath: officialPaths.advancedKeys, commandType: "setToggleByLabel", text: "SOCD" });
+      return;
+    }
+    await api.runOverlayAction({ page: "SOCD", action: `Set ${mode}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: mode });
+  };
+  return (
+    <div className="stack pageFade">
+      <PageIntro title="SOCD" note="Select a mode, then let the official advanced-key page apply it." path={officialPaths.advancedKeys} api={api} />
+      <div className="socdWorkspace">
+        <section className="panel socdModePanel">
+          <span>Mode</span>
+          <strong>{mode}</strong>
+          <div className="modeList">{socdModes.map((item) => <button className={mode === item ? "active" : ""} key={item} onClick={() => setMode(item)}>{item}</button>)}</div>
+        </section>
+        <section className="panel socdApplyPanel">
+          <span>Apply</span>
+          <strong>SOCD via official driver</strong>
+          <p>Opens the SOCD area in Advanced Keys and selects the visible official mode.</p>
+          <div className="actions"><button className="primary" onClick={applyMode}>Apply Mode</button><button onClick={() => api.openOfficialPath(officialPaths.advancedKeys, true)}>Official View</button></div>
+        </section>
+      </div>
+    </div>
+  );
 }
 
 function KeymapPage({ api }: { api: OverlayApi }) {

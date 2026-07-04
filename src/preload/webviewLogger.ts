@@ -571,8 +571,9 @@ async function getRememberedHidDevices(command: WebviewCommand): Promise<Command
 function setChoiceByLabel(command: WebviewCommand, mode: "radio" | "toggle"): CommandResult {
   const text = sanitizeText(command.text);
   if (!text) return baseResult(command, false, "No label provided");
-  const label = Array.from(document.querySelectorAll("label, button, [role='radio'], [role='switch'], [role='checkbox']")).find((item) => includesText(item, text));
+  const label = findChoiceByLabel(text);
   if (!(label instanceof HTMLElement)) return baseResult(command, false, `Could not find ${mode} label "${text}"`);
+  label.scrollIntoView({ block: "center", inline: "center" });
   label.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
   return { ...baseResult(command, true, `Selected ${text}`), matchedText: sanitizeText(label.textContent) };
 }
@@ -584,13 +585,11 @@ function findInput(command: WebviewCommand, type?: string): HTMLInputElement | H
   }
   const text = sanitizeText(command.text);
   if (text) {
-    const label = Array.from(document.querySelectorAll("label")).find((item) => includesText(item, text));
-    const forId = label?.getAttribute("for");
-    const byFor = forId ? document.getElementById(forId) : null;
-    if (byFor instanceof HTMLInputElement || byFor instanceof HTMLTextAreaElement || byFor instanceof HTMLSelectElement) return byFor;
+    const labeled = findInputNearText(text, type);
+    if (labeled) return labeled;
   }
   const selector = type ? `input[type="${type}"]` : "input, textarea, select";
-  const first = document.querySelector(selector);
+  const first = Array.from(document.querySelectorAll(selector)).find((item) => item instanceof HTMLElement && isVisibleEnabled(item));
   return first instanceof HTMLInputElement || first instanceof HTMLTextAreaElement || first instanceof HTMLSelectElement ? first : null;
 }
 
@@ -615,13 +614,50 @@ function findByText(text: string, tag?: string): HTMLElement | null {
 }
 
 function findNearbyRange(text: string): HTMLInputElement | null {
-  const anchor = findByText(text);
-  const scopes = [anchor?.closest("section, article, li, .card, div"), anchor?.parentElement, document.body].filter((item): item is Element => Boolean(item));
+  return findInputNearText(text, "range") as HTMLInputElement | null;
+}
+
+function findInputNearText(text: string, type?: string): HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null {
+  const inputSelector = type ? `input[type="${type}"]` : "input, textarea, select";
+  const label = Array.from(document.querySelectorAll("label")).find((item) => includesText(item, text));
+  const forId = label?.getAttribute("for");
+  const byFor = forId ? document.getElementById(forId) : null;
+  if (isSupportedInput(byFor, type)) return byFor;
+
+  const attributeMatch = Array.from(document.querySelectorAll(inputSelector)).find((item) => {
+    if (!isSupportedInput(item, type) || !isVisibleEnabled(item)) return false;
+    const metadata = `${item.getAttribute("aria-label") ?? ""} ${item.getAttribute("placeholder") ?? ""} ${item.getAttribute("name") ?? ""} ${item.id ?? ""}`;
+    return normalizeText(metadata).includes(normalizeText(text));
+  });
+  if (isSupportedInput(attributeMatch, type)) return attributeMatch;
+
+  const anchor = label instanceof HTMLElement ? label : findByText(text);
+  const scopes = [
+    anchor?.closest("section, article, li, form, fieldset, .card, .item, .row, div"),
+    anchor?.parentElement,
+    anchor?.nextElementSibling,
+    document.body
+  ].filter((item): item is Element => Boolean(item));
   for (const scope of scopes) {
-    const range = scope.querySelector("input[type='range']");
-    if (range instanceof HTMLInputElement && isVisibleEnabled(range)) return range;
+    const found = Array.from(scope.querySelectorAll(inputSelector)).find((item) => isSupportedInput(item, type) && isVisibleEnabled(item));
+    if (isSupportedInput(found, type)) return found;
   }
   return null;
+}
+
+function findChoiceByLabel(text: string): HTMLElement | null {
+  const selector = "label, button, [role='radio'], [role='switch'], [role='checkbox'], input[type='checkbox'], input[type='radio']";
+  const direct = Array.from(document.querySelectorAll(selector)).find((item) => item instanceof HTMLElement && isVisibleEnabled(item) && includesText(item, text));
+  if (direct instanceof HTMLElement) return direct;
+  const anchor = findByText(text);
+  const scope = anchor?.closest("section, article, li, form, fieldset, .card, .item, .row, div");
+  const nearChoice = scope ? Array.from(scope.querySelectorAll("button, label, [role='switch'], [role='checkbox'], input[type='checkbox'], input[type='radio']")).find((item) => item instanceof HTMLElement && isVisibleEnabled(item)) : undefined;
+  return nearChoice instanceof HTMLElement ? nearChoice : null;
+}
+
+function isSupportedInput(element: unknown, type?: string): element is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement {
+  if (!(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)) return false;
+  return !type || element instanceof HTMLInputElement && element.type === type;
 }
 
 function isVisibleEnabled(element: Element): boolean {

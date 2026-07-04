@@ -325,8 +325,19 @@ webview { display: block; width: 100%; height: 100%; border-radius: 16px; backgr
   color: #ffd18f;
   font-size: 12px;
 }
-.control { padding: 16px; display: grid; grid-template-columns: 1fr 2fr auto; gap: 12px; align-items: center; }
-.control input[type="range"] { accent-color: var(--accent); }
+.control { padding: 16px; display: grid; grid-template-columns: minmax(120px, 0.9fr) minmax(160px, 2fr) auto; gap: 12px; align-items: center; }
+.controlLabel { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.controlLabel strong {
+  min-width: 42px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.055);
+  color: var(--text);
+  text-align: center;
+  font-size: 13px;
+}
+.control input[type="range"] { accent-color: var(--accent); min-width: 0; }
 .segmented { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
 .segmented button.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 .swatches { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -390,17 +401,39 @@ webview { display: block; width: 100%; height: 100%; border-radius: 16px; backgr
 .actionHistory { display: grid; gap: 8px; }
 .actionRow {
   display: grid;
-  gap: 4px;
-  padding: 10px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 11px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: rgba(255,255,255,0.045);
 }
-.actionRow time, .actionRow span, .actionRow p { color: var(--muted); font-size: 12px; margin: 0; }
-.actionRow strong { font-size: 13px; }
-.actionRow.success { border-color: rgba(155,214,123,0.3); }
-.actionRow.failure { border-color: rgba(255,90,90,0.3); }
-.actionRow.pending { border-color: rgba(255,184,77,0.3); }
+.actionRow time { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.actionCopy { display: grid; gap: 3px; min-width: 0; }
+.actionCopy span, .actionCopy p { color: var(--muted); font-size: 12px; margin: 0; overflow-wrap: anywhere; }
+.actionCopy strong { font-size: 13px; overflow-wrap: anywhere; }
+.actionBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 82px;
+  padding: 5px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.actionBadge.success { color: #b8f099; background: rgba(155,214,123,0.12); border-color: rgba(155,214,123,0.32); }
+.actionBadge.failure { color: #ffb5b5; background: rgba(255,90,90,0.12); border-color: rgba(255,90,90,0.32); }
+.actionBadge.pending { color: #ffd18f; background: rgba(255,184,77,0.12); border-color: rgba(255,184,77,0.32); }
+.actionBadge.pending svg { animation: spin 900ms linear infinite; }
+.actionRow.success { border-color: rgba(155,214,123,0.28); background: rgba(155,214,123,0.055); }
+.actionRow.failure { border-color: rgba(255,90,90,0.28); background: rgba(255,90,90,0.055); }
+.actionRow.pending { border-color: rgba(255,184,77,0.28); background: rgba(255,184,77,0.055); }
+.actionRow.pending .actionCopy strong { color: #ffe0a8; }
+@keyframes spin { to { transform: rotate(360deg); } }
 .toast {
   position: fixed;
   left: 50%;

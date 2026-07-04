@@ -227,6 +227,13 @@ export function appendOverlayAction(state: LogState, action: Omit<OverlayAction,
   };
 }
 
+export function upsertOverlayAction(state: LogState, action: OverlayAction): LogState {
+  return {
+    ...state,
+    actions: [action, ...state.actions.filter((item) => item.id !== action.id)]
+  };
+}
+
 export function setWebviewMode(state: LogState, webviewMode: WebviewMode): LogState {
   return { ...state, webviewMode };
 }

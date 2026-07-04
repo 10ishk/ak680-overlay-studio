@@ -4,31 +4,35 @@ import { motion } from "framer-motion";
 import {
   Activity,
   Brush,
+  CheckCircle2,
   Gauge,
   Keyboard,
   ListTodo,
+  Loader2,
   MonitorUp,
   Settings,
   Shield,
   SlidersHorizontal,
   TerminalSquare,
+  XCircle,
   Zap
 } from "lucide-react";
 import { getBridge } from "../bridge/ak680Bridge";
 import {
   appendEvent,
   appendMarker,
-  appendOverlayAction,
   deriveLogState,
   exportLogJson,
   initialLogState,
   normalizeGuestEvent,
   OverlayAction,
+  OverlayActionStatus,
   OverlayLogEvent,
   setWebviewMode,
   startCaptureSession,
   stopCaptureSession,
   timestampFilename,
+  upsertOverlayAction,
   WebviewMode
 } from "./logStore";
 import {
@@ -60,6 +64,7 @@ type PendingCommand = {
   page: Page;
   action: string;
   targetOfficialPath: OfficialPath;
+  startedAt: string;
   resolve: (result: WebviewCommandResult) => void;
   timeout: number;
 };
@@ -170,7 +175,9 @@ function App() {
       if (pending) {
         window.clearTimeout(pending.timeout);
         pendingCommands.current.delete(result.id);
-        setLogState((state) => appendOverlayAction(state, {
+        setLogState((state) => upsertOverlayAction(state, {
+          id: result.id,
+          timestamp: result.timestamp,
           page: pending.page,
           action: pending.action,
           targetOfficialPath: pending.targetOfficialPath,
@@ -226,7 +233,10 @@ function App() {
       tag: options.tag,
       nearText: options.nearText
     });
-    setLogState((state) => appendOverlayAction(state, {
+    const startedAt = new Date().toISOString();
+    setLogState((state) => upsertOverlayAction(state, {
+      id: command.id,
+      timestamp: startedAt,
       page: options.page,
       action: options.action,
       targetOfficialPath: options.targetOfficialPath,
@@ -247,7 +257,9 @@ function App() {
           message: "Official webview did not respond before timeout",
           route: options.targetOfficialPath
         };
-        setLogState((state) => appendOverlayAction(state, {
+        setLogState((state) => upsertOverlayAction(state, {
+          id: command.id,
+          timestamp: result.timestamp,
           page: options.page,
           action: options.action,
           targetOfficialPath: options.targetOfficialPath,
@@ -257,7 +269,7 @@ function App() {
         setToast(result.message);
         resolve(result);
       }, command.timeoutMs ?? 3500);
-      pendingCommands.current.set(command.id, { page: options.page, action: options.action, targetOfficialPath: options.targetOfficialPath, resolve, timeout });
+      pendingCommands.current.set(command.id, { page: options.page, action: options.action, targetOfficialPath: options.targetOfficialPath, startedAt, resolve, timeout });
       window.setTimeout(() => sendCommand(command), 220);
     });
   }, [openOfficialPath, sendCommand]);
@@ -675,19 +687,24 @@ const OfficialWebviewHost = React.forwardRef<ElectronWebview | null, { mode: Web
 function LogsPage(props: { events: OverlayLogEvent[]; actions: OverlayAction[]; marker: string; setMarker: (marker: string) => void; addMarker: (label?: string) => void; exportLogs: () => void; clearLogs: () => void; derived: ReturnType<typeof deriveLogState> }) {
   const [filter, setFilter] = useState<Filter>("All");
   const events = filterEvents(props.events, filter);
-  return <div className="logs full pageFade"><div className="logsHeader"><div><h2>Diagnostics & Actions</h2><p>{props.derived.eventCount} activity events and {props.actions.length} adapter actions.</p></div><div className="actions"><button onClick={props.exportLogs}>Export Diagnostics</button><button onClick={props.clearLogs}>Clear Activity</button></div></div><FilterTabs filter={filter} setFilter={setFilter} /><QuickMarkers addMarker={(label) => props.addMarker(label)} /><MarkerInput marker={props.marker} setMarker={props.setMarker} addMarker={props.addMarker} /><ActionHistory actions={props.actions} /><EventList events={events} /></div>;
+  return <div className="logs full pageFade"><div className="logsHeader"><div><h2>Diagnostics & Actions</h2><p>{props.derived.eventCount} activity events and {props.actions.length} adapter actions.</p></div><div className="actions"><button onClick={props.exportLogs}>Export Diagnostics</button><button onClick={props.clearLogs}>Clear Activity</button></div></div><FilterTabs filter={filter} setFilter={setFilter} /><QuickMarkers addMarker={(label) => props.addMarker(label)} /><MarkerInput marker={props.marker} setMarker={props.setMarker} addMarker={props.addMarker} /><ActionHistoryPanel actions={props.actions} /><EventList events={events} /></div>;
 }
 
 function UtilityDrawer({ derived, actions, events, exportLogs }: { derived: ReturnType<typeof deriveLogState>; actions: OverlayAction[]; events: OverlayLogEvent[]; exportLogs: () => void }) {
-  return <div className="logs"><div className="drawerTitle"><h3>Diagnostics</h3><span className="sessionDot">Secondary</span></div><div className="miniStats"><span>{derived.deviceConnectStatus}</span><span>Route {derived.currentRoute}</span><span>Last {derived.lastOverlayAction?.status ?? "none"}</span><span>{events.length} activity events</span></div><ActionHistory actions={actions.slice(0, 5)} compact /><button onClick={exportLogs}>Export Diagnostics</button></div>;
+  return <div className="logs"><div className="drawerTitle"><h3>Diagnostics</h3><span className="sessionDot">Secondary</span></div><div className="miniStats"><span>{derived.deviceConnectStatus}</span><span>Route {derived.currentRoute}</span><span>Last {derived.lastOverlayAction?.status ?? "none"}</span><span>{events.length} activity events</span></div><ActionHistoryPanel actions={actions.slice(0, 5)} compact /><button onClick={exportLogs}>Export Diagnostics</button></div>;
 }
 
-function ActionHistory({ actions, compact = false }: { actions: OverlayAction[]; compact?: boolean }) {
-  return <div className="actionHistory">{actions.length === 0 && <div className="empty">No overlay actions yet.</div>}{actions.map((action) => <div className={`actionRow ${action.status}`} key={action.id}><time>{new Date(action.timestamp).toLocaleTimeString()}</time><strong>{action.action}</strong>{!compact && <span>{action.page} · {action.targetOfficialPath}</span>}<p>{action.message}</p></div>)}</div>;
+function ActionHistoryPanel({ actions, compact = false }: { actions: OverlayAction[]; compact?: boolean }) {
+  return <div className="actionHistory">{actions.length === 0 && <div className="empty">No overlay actions yet.</div>}{actions.map((action) => <div className={`actionRow ${action.status}`} key={action.id}><ActionStatusBadge status={action.status} /><div className="actionCopy"><strong>{action.action}</strong>{!compact && <span>{action.page} - {action.targetOfficialPath}</span>}<p>{action.message}</p></div><time>{new Date(action.timestamp).toLocaleTimeString()}</time></div>)}</div>;
+}
+
+function ActionStatusBadge({ status }: { status: OverlayActionStatus }) {
+  const Icon = status === "success" ? CheckCircle2 : status === "failure" ? XCircle : Loader2;
+  return <span className={`actionBadge ${status}`}><Icon size={14} />{status}</span>;
 }
 
 function ControlPanel({ title, value, setValue, onApply }: { title: string; value: number; setValue: (value: number) => void; onApply: (value: number) => void }) {
-  return <section className="control"><label>{title}</label><input type="range" min="0" max="100" value={value} onChange={(event) => setValue(Number(event.target.value))} /><button onClick={() => onApply(value)}>Apply {value}</button></section>;
+  return <section className="control"><div className="controlLabel"><label>{title}</label><strong>{value}</strong></div><input type="range" min="0" max="100" value={value} onChange={(event) => setValue(Number(event.target.value))} /><button onClick={() => onApply(value)}>Apply</button></section>;
 }
 
 function MarkerInput(props: { marker: string; setMarker: (marker: string) => void; addMarker: (label?: string) => void }) {

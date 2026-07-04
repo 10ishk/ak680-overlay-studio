@@ -2,6 +2,8 @@
 
 AK680 Overlay Studio is an Electron + React + TypeScript overlay/wrapper prototype for the AJAZZ AK680 V2. It embeds the official AJAZZ web driver in a visible desktop webview and adds a separate modern shell for navigation, markers, and live logging.
 
+Status: **v0.1.0 MVP**. This is the first usable overlay prototype for manual official-driver logging and capture sessions.
+
 The official webview performs real keyboard communication. This app observes WebHID and DOM activity from that webview, but it does not include native HID writes, packet sending, a packet editor, or a command console.
 
 ## Install
@@ -22,6 +24,13 @@ The app opens an Electron window with the overlay shell and the official driver 
 
 ```bash
 npm run build
+```
+
+Useful checks:
+
+```bash
+npm run typecheck
+npm run lint
 ```
 
 ## Connect AK680 V2
@@ -130,12 +139,12 @@ Logs are not uploaded anywhere, are not written automatically to the repo, and a
 
 - This is an overlay/wrapper prototype.
 - The app does not include native HID writes or packet sending.
+- The app does not include a packet editor, command console, command registry, or SOCD automation.
 - Feature pages are placeholders and intentionally do not write to the keyboard.
 - The official webview remains the only actor that writes to the keyboard.
 - Overlay navigation is limited to known official URLs and does not operate controls inside the official web app.
 - The logger observes calls and packets but does not decode the protocol yet.
 - Logging is in-memory only until manual export.
-- SOCD automation is not implemented.
 - AJAZZ screenshots, copied assets, downloaded bundles, and snapshots of the official web app are not included or copied.
 - Do not commit raw WebHID logs, private traces, serial numbers, tokens, secrets, cookies, local paths, user profile exports, browser cache/session data, generated build artifacts, or large research dumps.
 

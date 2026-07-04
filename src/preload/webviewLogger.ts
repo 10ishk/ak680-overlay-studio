@@ -476,34 +476,53 @@ async function prepareCommandRoute(command: WebviewCommand): Promise<CommandResu
   return baseResult(command, ready, ready ? `Prepared ${path}` : `Official route ${path} did not become ready`);
 }
 
-function clickByText(command: WebviewCommand): CommandResult {
+async function clickByText(command: WebviewCommand): Promise<CommandResult> {
   const text = sanitizeText(command.text);
   if (!text) return baseResult(command, false, "No text provided");
-  const element = findClickableByText(text, command.tag);
-  if (!element) return baseResult(command, false, `Could not find visible text "${text}"`);
-  element.scrollIntoView({ block: "center", inline: "center" });
-  dispatchClickSequence(element);
-  return { ...baseResult(command, true, `Clicked "${text}"`), matchedText: sanitizeText(element.textContent) };
+  let element: HTMLElement | null = null;
+  await retryUntil(() => {
+    element = findClickableByText(text, command.tag);
+    return Boolean(element);
+  }, command.timeoutMs);
+  const target = element as HTMLElement | null;
+  if (!target) return baseResult(command, false, `Could not find visible text "${text}"`);
+  target.scrollIntoView({ block: "center", inline: "center" });
+  dispatchClickSequence(target);
+  return { ...baseResult(command, true, `Clicked "${text}"`), matchedText: sanitizeText(target.textContent) };
 }
 
-function clickBySelector(command: WebviewCommand): CommandResult {
+async function clickBySelector(command: WebviewCommand): Promise<CommandResult> {
   if (!command.selector) return baseResult(command, false, "No selector provided");
-  const element = document.querySelector(command.selector);
-  if (!(element instanceof HTMLElement) || !isVisibleEnabled(element)) return baseResult(command, false, `Could not find visible enabled selector ${command.selector}`);
-  element.scrollIntoView({ block: "center", inline: "center" });
-  dispatchClickSequence(element);
-  return { ...baseResult(command, true, `Clicked selector ${command.selector}`), matchedText: sanitizeText(element.textContent) };
+  let element: HTMLElement | null = null;
+  await retryUntil(() => {
+    const selected = document.querySelector(command.selector ?? "");
+    element = selected instanceof HTMLElement && isVisibleEnabled(selected) ? selected : null;
+    return Boolean(element);
+  }, command.timeoutMs);
+  const target = element as HTMLElement | null;
+  if (!target || !isVisibleEnabled(target)) return baseResult(command, false, `Could not find visible enabled selector ${command.selector}`);
+  target.scrollIntoView({ block: "center", inline: "center" });
+  dispatchClickSequence(target);
+  return { ...baseResult(command, true, `Clicked selector ${command.selector}`), matchedText: sanitizeText(target.textContent) };
 }
 
-function setInputValue(command: WebviewCommand): CommandResult {
-  const input = findInput(command);
+async function setInputValue(command: WebviewCommand): Promise<CommandResult> {
+  let input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null = null;
+  await retryUntil(() => {
+    input = findInput(command);
+    return Boolean(input);
+  }, command.timeoutMs);
   if (!input) return baseResult(command, false, "Could not find input");
   setDomValue(input, String(command.value ?? ""));
   return baseResult(command, true, "Input value set through official DOM");
 }
 
-function setRangeValue(command: WebviewCommand): CommandResult {
-  const input = findInput(command, "range");
+async function setRangeValue(command: WebviewCommand): Promise<CommandResult> {
+  let input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null = null;
+  await retryUntil(() => {
+    input = findInput(command, "range");
+    return Boolean(input);
+  }, command.timeoutMs);
   if (!input) return baseResult(command, false, "Could not find range input");
   setDomValue(input, String(command.value ?? ""));
   return baseResult(command, true, "Range value set through official DOM");
@@ -526,29 +545,45 @@ async function waitForSelector(command: WebviewCommand): Promise<CommandResult> 
   return baseResult(command, found, found ? `Found selector ${selector}` : `Timed out waiting for selector ${selector}`);
 }
 
-function setRangeByNearbyLabel(command: WebviewCommand): CommandResult {
+async function setRangeByNearbyLabel(command: WebviewCommand): Promise<CommandResult> {
   const labels = [command.text, command.nearText].filter((item): item is string => Boolean(item));
-  for (const label of labels) {
-    const range = findNearbyRange(label);
-    if (range) {
-      range.scrollIntoView({ block: "center", inline: "center" });
-      setDomValue(range, String(command.value ?? ""));
-      return { ...baseResult(command, true, `Set range near "${label}"`), matchedText: label, selector: "input[type='range']" };
+  let matchedLabel = "";
+  let range: HTMLInputElement | null = null;
+  await retryUntil(() => {
+    for (const label of labels) {
+      range = findNearbyRange(label);
+      if (range) {
+        matchedLabel = label;
+        return true;
+      }
     }
+    return false;
+  }, command.timeoutMs);
+  const targetRange = range as HTMLInputElement | null;
+  if (targetRange) {
+    targetRange.scrollIntoView({ block: "center", inline: "center" });
+    setDomValue(targetRange, String(command.value ?? ""));
+    return { ...baseResult(command, true, `Set range near "${matchedLabel}"`), matchedText: matchedLabel, selector: "input[type='range']" };
   }
   return baseResult(command, false, `Could not find nearby range for ${labels.join(" / ") || "label"}`);
 }
 
-function clickButtonNearText(command: WebviewCommand): CommandResult {
+async function clickButtonNearText(command: WebviewCommand): Promise<CommandResult> {
   const nearText = sanitizeText(command.nearText ?? command.text);
   if (!nearText) return baseResult(command, false, "No nearby text provided");
-  const anchor = findByText(nearText);
-  const scope = anchor?.closest("section, article, li, .card, div") ?? document.body;
-  const button = Array.from(scope.querySelectorAll("button, [role='button'], a")).find((item) => item instanceof HTMLElement && isVisibleEnabled(item));
-  if (!(button instanceof HTMLElement)) return baseResult(command, false, `Could not find button near "${nearText}"`);
-  button.scrollIntoView({ block: "center", inline: "center" });
-  dispatchClickSequence(button);
-  return { ...baseResult(command, true, `Clicked button near "${nearText}"`), matchedText: sanitizeText(button.textContent) };
+  let button: HTMLElement | null = null;
+  await retryUntil(() => {
+    const anchor = findByText(nearText);
+    const scope = anchor?.closest("section, article, li, .card, div") ?? document.body;
+    const found = Array.from(scope.querySelectorAll("button, [role='button'], a")).find((item) => item instanceof HTMLElement && isVisibleEnabled(item));
+    button = found instanceof HTMLElement ? found : null;
+    return Boolean(button);
+  }, command.timeoutMs);
+  const target = button as HTMLElement | null;
+  if (!target) return baseResult(command, false, `Could not find button near "${nearText}"`);
+  target.scrollIntoView({ block: "center", inline: "center" });
+  dispatchClickSequence(target);
+  return { ...baseResult(command, true, `Clicked button near "${nearText}"`), matchedText: sanitizeText(target.textContent) };
 }
 
 async function getRememberedHidDevices(command: WebviewCommand): Promise<CommandResult> {
@@ -562,14 +597,19 @@ async function getRememberedHidDevices(command: WebviewCommand): Promise<Command
   }
 }
 
-function setChoiceByLabel(command: WebviewCommand, mode: "radio" | "toggle"): CommandResult {
+async function setChoiceByLabel(command: WebviewCommand, mode: "radio" | "toggle"): Promise<CommandResult> {
   const text = sanitizeText(command.text);
   if (!text) return baseResult(command, false, "No label provided");
-  const label = findChoiceByLabel(text);
-  if (!(label instanceof HTMLElement)) return baseResult(command, false, `Could not find ${mode} label "${text}"`);
-  label.scrollIntoView({ block: "center", inline: "center" });
-  dispatchClickSequence(label);
-  return { ...baseResult(command, true, `Selected ${text}`), matchedText: sanitizeText(label.textContent) };
+  let label: HTMLElement | null = null;
+  await retryUntil(() => {
+    label = findChoiceByLabel(text);
+    return Boolean(label);
+  }, command.timeoutMs);
+  const target = label as HTMLElement | null;
+  if (!target) return baseResult(command, false, `Could not find ${mode} label "${text}"`);
+  target.scrollIntoView({ block: "center", inline: "center" });
+  dispatchClickSequence(target);
+  return { ...baseResult(command, true, `Selected ${text}`), matchedText: sanitizeText(target.textContent) };
 }
 
 function findInput(command: WebviewCommand, type?: string): HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null {

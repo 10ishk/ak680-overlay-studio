@@ -454,7 +454,7 @@ function AdvancedKeysPage({ api }: { api: OverlayApi }) {
         </section>
         <section className="advancedActions">
           <ControlPanel title="Trigger Point" value={actuation} setValue={setActuation} onApply={async (value) => { await openModule(); await api.runOverlayAction({ page: "Advanced Keys", action: `${module} Trigger ${value}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "setRangeByNearbyLabel", text: module, nearText: "Trigger", value }); }} />
-          <button className="panel actionPanel" onClick={async () => { await openModule(); await api.runOverlayAction({ page: "Advanced Keys", action: `Enable ${module}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "setToggleByLabel", text: "Enable" }); }}><span>Toggle</span><strong>Enable</strong><p>Turns on the selected module if the official toggle is visible.</p></button>
+          <button className="panel actionPanel" onClick={async () => { await openModule(); await api.runOverlayAction({ page: "Advanced Keys", action: `Enable ${module}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "setToggleByLabel", text: "Enable", value: true }); }}><span>Toggle</span><strong>Enable</strong><p>Turns on the selected module if the official toggle is visible.</p></button>
           <button className="panel actionPanel" onClick={async () => { await openModule(); await api.runOverlayAction({ page: "Advanced Keys", action: `Save ${module}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: "Save" }); }}><span>Commit</span><strong>Save</strong><p>Uses the official driver save action.</p></button>
         </section>
       </div>
@@ -467,7 +467,7 @@ function SocdPage({ api }: { api: OverlayApi }) {
   const applyMode = async () => {
     await api.runOverlayAction({ page: "SOCD", action: "Open SOCD panel", targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: "SOCD" });
     if (mode === "Off") {
-      await api.runOverlayAction({ page: "SOCD", action: "Disable SOCD", targetOfficialPath: officialPaths.advancedKeys, commandType: "setToggleByLabel", text: "SOCD" });
+      await api.runOverlayAction({ page: "SOCD", action: "Disable SOCD", targetOfficialPath: officialPaths.advancedKeys, commandType: "setToggleByLabel", text: "SOCD", value: false });
       return;
     }
     await api.runOverlayAction({ page: "SOCD", action: `Set ${mode}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: mode });
@@ -576,8 +576,8 @@ function SettingsPage(props: { theme: string; setTheme: (theme: string) => void;
   const applyDeviceSettings = async () => {
     await props.api.runOverlayAction({ page: "Settings", action: `Return Rate ${returnRate}`, targetOfficialPath: officialPaths.settings, commandType: "clickByText", text: "Return Rate" });
     await props.api.runOverlayAction({ page: "Settings", action: `Select ${returnRate}`, targetOfficialPath: officialPaths.settings, commandType: "clickByText", text: returnRate });
-    if (stability) await props.api.runOverlayAction({ page: "Settings", action: "Enable Stability Mode", targetOfficialPath: officialPaths.settings, commandType: "setToggleByLabel", text: "Stability Mode" });
-    if (calibration) await props.api.runOverlayAction({ page: "Settings", action: "Enable Adaptive Dynamic Calibration", targetOfficialPath: officialPaths.settings, commandType: "setToggleByLabel", text: "Adaptive Dynamic Calibration" });
+    await props.api.runOverlayAction({ page: "Settings", action: `${stability ? "Enable" : "Disable"} Stability Mode`, targetOfficialPath: officialPaths.settings, commandType: "setToggleByLabel", text: "Stability Mode", value: stability });
+    await props.api.runOverlayAction({ page: "Settings", action: `${calibration ? "Enable" : "Disable"} Adaptive Dynamic Calibration`, targetOfficialPath: officialPaths.settings, commandType: "setToggleByLabel", text: "Adaptive Dynamic Calibration", value: calibration });
   };
   return (
     <div className="stack pageFade">

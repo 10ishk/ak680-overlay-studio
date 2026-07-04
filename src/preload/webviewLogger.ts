@@ -607,9 +607,14 @@ async function setChoiceByLabel(command: WebviewCommand, mode: "radio" | "toggle
   }, command.timeoutMs);
   const target = label as HTMLElement | null;
   if (!target) return baseResult(command, false, `Could not find ${mode} label "${text}"`);
+  const desired = typeof command.value === "boolean" ? command.value : undefined;
+  const current = readChoiceState(target);
+  if (mode === "toggle" && desired !== undefined && current === desired) {
+    return { ...baseResult(command, true, `${text} already ${desired ? "enabled" : "disabled"}`), matchedText: sanitizeText(target.textContent), details: { desired, current } };
+  }
   target.scrollIntoView({ block: "center", inline: "center" });
   dispatchClickSequence(target);
-  return { ...baseResult(command, true, `Selected ${text}`), matchedText: sanitizeText(target.textContent) };
+  return { ...baseResult(command, true, desired === undefined ? `Selected ${text}` : `Set ${text} ${desired ? "on" : "off"}`), matchedText: sanitizeText(target.textContent), details: { desired, previous: current } };
 }
 
 function findInput(command: WebviewCommand, type?: string): HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null {
@@ -823,6 +828,19 @@ function bestElementCandidate(scope: Element, selector: string): HTMLElement | n
     })
     .sort((a, b) => b.score - a.score);
   return candidates[0]?.element ?? null;
+}
+
+function readChoiceState(element: HTMLElement): boolean | undefined {
+  if (element instanceof HTMLInputElement && (element.type === "checkbox" || element.type === "radio")) return element.checked;
+  const ariaChecked = element.getAttribute("aria-checked");
+  if (ariaChecked === "true") return true;
+  if (ariaChecked === "false") return false;
+  const ariaPressed = element.getAttribute("aria-pressed");
+  if (ariaPressed === "true") return true;
+  if (ariaPressed === "false") return false;
+  if (element.classList.contains("active") || element.classList.contains("selected") || element.classList.contains("checked")) return true;
+  const nested = element.querySelector("input[type='checkbox'], input[type='radio'], [aria-checked], [aria-pressed]");
+  return nested instanceof HTMLElement ? readChoiceState(nested) : undefined;
 }
 
 function isSupportedInput(element: unknown, type?: string): element is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement {

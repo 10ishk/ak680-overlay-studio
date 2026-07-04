@@ -226,7 +226,7 @@ function App() {
   const runOverlayAction = useCallback((options: RunActionOptions): Promise<WebviewCommandResult> => {
     openOfficialPath(options.targetOfficialPath, false);
     const command = createCommand(options.commandType, {
-      path: options.commandType === "navigateToPath" ? options.targetOfficialPath : undefined,
+      path: options.targetOfficialPath,
       text: options.text,
       selector: options.selector,
       value: options.value,

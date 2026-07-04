@@ -28,6 +28,15 @@ type HidInputReportLike = Event & {
 const SOURCE = "webhid";
 const OFFICIAL_ORIGIN = "https://ajazz.driveall.cn";
 const recentNonHidEvents = new Map<string, number>();
+const ALLOWED_PATHS = ["/custom-keys", "/lighting", "/macro", "/performance", "/advanced-keys", "/settings"];
+const READY_TEXT_BY_PATH: Record<string, string[]> = {
+  "/custom-keys": ["Custom Keys", "AJAZZ AK680 V2", "Wired connection", "Keyboard Config File", "Esc", "Backspace"],
+  "/lighting": ["Lighting", "Brightness", "Speed", "Static", "Snowfall", "RGB"],
+  "/macro": ["Macro", "Record", "New Macro", "Macro Manager"],
+  "/performance": ["Performance", "Trigger", "Dead Zone", "Fast Trigger", "Game Mode"],
+  "/advanced-keys": ["Advanced", "SOCD", "RS", "DKS", "MT", "TGL"],
+  "/settings": ["Settings", "Return Rate", "Stability", "Calibration", "Reset"]
+};
 
 type WebviewCommand = {
   id: string;
@@ -360,6 +369,11 @@ async function runCommand(command: WebviewCommand): Promise<CommandResult> {
     return baseResult(command, false, "Command ignored outside official AJAZZ origin");
   }
 
+  if (shouldPrepareRoute(command)) {
+    const ready = await prepareCommandRoute(command);
+    if (!ready.success) return ready;
+  }
+
   switch (command.type) {
     case "detectOfficialState":
       return {
@@ -430,7 +444,7 @@ function baseResult(command: WebviewCommand, success: boolean, message: string):
 
 function navigateToPath(command: WebviewCommand): CommandResult {
   const path = command.path === "/" ? "/custom-keys" : command.path ?? "/custom-keys";
-  if (!["/custom-keys", "/lighting", "/macro", "/performance", "/advanced-keys", "/settings"].includes(path)) {
+  if (!ALLOWED_PATHS.includes(path)) {
     return baseResult(command, false, `Blocked unknown official path ${path}`);
   }
   if (location.pathname !== path) {
@@ -438,6 +452,28 @@ function navigateToPath(command: WebviewCommand): CommandResult {
     window.dispatchEvent(new PopStateEvent("popstate"));
   }
   return baseResult(command, true, `Navigated to ${path}`);
+}
+
+function shouldPrepareRoute(command: WebviewCommand): boolean {
+  return Boolean(command.path)
+    && command.type !== "navigateToPath"
+    && command.type !== "getCurrentRoute"
+    && command.type !== "detectOfficialState";
+}
+
+async function prepareCommandRoute(command: WebviewCommand): Promise<CommandResult> {
+  const path = command.path === "/" ? "/custom-keys" : command.path ?? "/custom-keys";
+  if (!ALLOWED_PATHS.includes(path)) {
+    return baseResult(command, false, `Blocked unknown official path ${path}`);
+  }
+  if (location.pathname !== path) {
+    history.pushState(null, "", path);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }
+  const expectedText = READY_TEXT_BY_PATH[path] ?? [];
+  if (expectedText.length === 0) return baseResult(command, true, `Prepared ${path}`);
+  const ready = await retryUntil(() => expectedText.some((text) => Boolean(findByText(text))), command.timeoutMs);
+  return baseResult(command, ready, ready ? `Prepared ${path}` : `Official route ${path} did not become ready`);
 }
 
 function clickByText(command: WebviewCommand): CommandResult {

@@ -89,7 +89,7 @@ h3 { font-size: 16px; margin-bottom: 14px; }
 .pill.recording { color: #ffd18f; background: rgba(255, 184, 77, 0.14); border-color: rgba(255, 184, 77, 0.34); }
 
 .content { min-height: 0; overflow: auto; padding: 24px; }
-.stack, .dashboard { display: grid; gap: 18px; }
+.stack, .dashboard, .controlBoard { display: grid; gap: 18px; }
 .pageFade { animation: pageFade 220ms ease; }
 @keyframes pageFade { from { opacity: 0; transform: translateY(8px) scale(0.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .hero, .pageIntro, .notice, .panel, .keyboardCard, .webviewFrame, .control {
@@ -198,6 +198,80 @@ h3 { font-size: 16px; margin-bottom: 14px; }
     linear-gradient(145deg, var(--accent-soft), rgba(255,255,255,0.05)),
     var(--panel);
   box-shadow: 0 18px 60px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+
+.controlHero {
+  min-height: 156px;
+  padding: 22px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.025)),
+    var(--panel);
+  box-shadow: 0 22px 70px rgba(0,0,0,0.2);
+}
+.controlHero h3 {
+  margin: 0;
+  font-size: clamp(24px, 3vw, 38px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.lightingHero {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255,138,61,0.34), transparent 32%),
+    radial-gradient(circle at 80% 18%, rgba(57,167,255,0.2), transparent 28%),
+    var(--panel);
+}
+.performanceHero {
+  background:
+    radial-gradient(circle at 18% 18%, rgba(155,214,123,0.22), transparent 34%),
+    radial-gradient(circle at 86% 26%, rgba(167,139,250,0.2), transparent 30%),
+    var(--panel);
+}
+.presetGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.presetTile {
+  min-height: 116px;
+  padding: 16px;
+  display: grid;
+  align-content: space-between;
+  text-align: left;
+  border-radius: 18px;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)),
+    var(--panel);
+}
+.presetTile span {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.presetTile strong {
+  font-size: 18px;
+  line-height: 1.05;
+}
+.presetTile:hover {
+  background:
+    linear-gradient(145deg, var(--accent-soft), rgba(255,255,255,0.05)),
+    var(--panel);
+  box-shadow: 0 18px 50px rgba(0,0,0,0.22);
+}
+.controlDock {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.colorPanel, .fastTrigger {
+  min-height: 150px;
 }
 
 .webviewFrame { height: min(72vh, 760px); overflow: hidden; padding: 10px; }
@@ -372,6 +446,7 @@ webview { display: block; width: 100%; height: 100%; border-radius: 16px; backgr
   .logDrawer { display: none; }
   .grid.three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .commandGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .presetGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .effectGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .officialHost.docked { left: 228px; right: 24px; }
 }
@@ -389,8 +464,10 @@ webview { display: block; width: 100%; height: 100%; border-radius: 16px; backgr
   .sidebar { position: sticky; top: 0; z-index: 2; border-right: 0; border-bottom: 1px solid var(--border); }
   nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .topbar, .hero, .pageIntro { align-items: flex-start; flex-direction: column; }
+  .controlHero { align-items: flex-start; flex-direction: column; }
   .grid.three, .grid.two { grid-template-columns: 1fr; }
   .commandGrid { grid-template-columns: 1fr; }
+  .presetGrid, .controlDock { grid-template-columns: 1fr; }
   .effectGrid { grid-template-columns: 1fr; }
   .content { overflow: visible; }
   .control { grid-template-columns: 1fr; }

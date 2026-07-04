@@ -51,6 +51,7 @@ function createWindow(): BrowserWindow {
     minWidth: 1040,
     minHeight: 720,
     title: "AK680 Overlay Studio",
+    autoHideMenuBar: true,
     backgroundColor: "#08090b",
     webPreferences: {
       preload: path.join(__dirname, "../preload/preload.cjs"),
@@ -59,6 +60,10 @@ function createWindow(): BrowserWindow {
       sandbox: false,
       webviewTag: true
     }
+  });
+
+  win.on("page-title-updated", (event) => {
+    event.preventDefault();
   });
 
   const devServer = process.env.VITE_DEV_SERVER_URL;

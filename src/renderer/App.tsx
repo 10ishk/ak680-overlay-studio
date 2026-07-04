@@ -367,15 +367,24 @@ function LightingPage({ api, derived }: { api: OverlayApi; derived: ReturnType<t
   const [speed, setSpeed] = useState(50);
   const [mode, setMode] = useState("RGB");
   return (
-    <div className="stack pageFade">
-      <PageIntro title="Lighting" note="Effect and color controls use official DOM actions where matching controls are visible." path={officialPaths.lighting} api={api} />
-      <div className="grid three"><Metric title="Official connection" value={derived.connectedDeviceStatus} note="Connect through official webview" /><Metric title="Official route" value={derived.currentRoute} note="/lighting expected" /><Metric title="Last lighting action" value={derived.lastOverlayAction?.message ?? "Idle"} note={derived.lastOverlayAction?.action ?? "Select an effect"} /></div>
-      <div className="effectGrid">{lightingEffects.map((effect) => <button key={effect} className="effectCard" onClick={async () => { await api.runOverlayAction({ page: "Lighting", action: "Wait for Lighting page", targetOfficialPath: officialPaths.lighting, commandType: "waitForText", text: "Lighting" }); await api.runOverlayAction({ page: "Lighting", action: `Lighting effect ${effect}`, targetOfficialPath: officialPaths.lighting, commandType: "clickByText", text: effect }); }}><strong>{effect}</strong><span>Applied through official web driver</span></button>)}</div>
-      <div className="grid two">
+    <div className="controlBoard pageFade">
+      <PageIntro title="Lighting" note="Effects and color." path={officialPaths.lighting} api={api} />
+      <section className="controlHero lightingHero">
+        <div>
+          <span className="eyebrow">Live</span>
+          <h3>{derived.lastOverlayAction?.page === "Lighting" ? derived.lastOverlayAction.action : "Ready"}</h3>
+        </div>
+        <div className="statusChips">
+          <StatusChip label="Route" value={derived.currentRoute} />
+          <StatusChip label="Result" value={derived.lastOverlayAction?.status ?? "Idle"} tone={derived.lastOverlayAction?.status === "success" ? "good" : derived.lastOverlayAction?.status === "failure" ? "bad" : "idle"} />
+        </div>
+      </section>
+      <div className="presetGrid">{lightingEffects.slice(0, 8).map((effect) => <button key={effect} className="presetTile" onClick={async () => { await api.runOverlayAction({ page: "Lighting", action: "Wait for Lighting page", targetOfficialPath: officialPaths.lighting, commandType: "waitForText", text: "Lighting" }); await api.runOverlayAction({ page: "Lighting", action: `Lighting effect ${effect}`, targetOfficialPath: officialPaths.lighting, commandType: "clickByText", text: effect }); }}><span>Effect</span><strong>{effect}</strong></button>)}</div>
+      <div className="controlDock">
         <ControlPanel title="Brightness" value={brightness} setValue={setBrightness} onApply={(value) => api.runOverlayAction({ page: "Lighting", action: `Lighting Brightness ${value}`, targetOfficialPath: officialPaths.lighting, commandType: "setRangeByNearbyLabel", text: "Lighting Brightness", nearText: "Brightness", value })} />
         <ControlPanel title="Speed" value={speed} setValue={setSpeed} onApply={(value) => api.runOverlayAction({ page: "Lighting", action: `Lighting Speed ${value}`, targetOfficialPath: officialPaths.lighting, commandType: "setRangeByNearbyLabel", text: "Lighting Speed", nearText: "Speed", value })} />
+        <section className="panel colorPanel"><span>Mode</span><div className="segmented">{["RGB", "Mono"].map((item) => <button className={mode === item ? "active" : ""} key={item} onClick={() => { setMode(item); void api.runOverlayAction({ page: "Lighting", action: `Color mode ${item}`, targetOfficialPath: officialPaths.lighting, commandType: "clickByText", text: item === "Mono" ? "Monochrome" : item }); }}>{item}</button>)}</div><div className="swatches">{colors.map((color) => <button key={color} style={{ background: color }} title={color} onClick={() => api.runOverlayAction({ page: "Lighting", action: `Color ${color}`, targetOfficialPath: officialPaths.lighting, commandType: "clickByText", text: color })} />)}</div></section>
       </div>
-      <section className="panel"><span>Color mode</span><div className="segmented">{["RGB", "Monochrome"].map((item) => <button className={mode === item ? "active" : ""} key={item} onClick={() => { setMode(item); void api.runOverlayAction({ page: "Lighting", action: `Color mode ${item}`, targetOfficialPath: officialPaths.lighting, commandType: "clickByText", text: item }); }}>{item}</button>)}</div><div className="swatches">{colors.map((color) => <button key={color} style={{ background: color }} title={color} onClick={() => api.runOverlayAction({ page: "Lighting", action: `Color ${color}`, targetOfficialPath: officialPaths.lighting, commandType: "clickByText", text: color })} />)}</div></section>
     </div>
   );
 }
@@ -385,17 +394,19 @@ function PerformancePage({ api, derived }: { api: OverlayApi; derived: ReturnTyp
   const [deadTop, setDeadTop] = useState(5);
   const [deadBottom, setDeadBottom] = useState(5);
   return (
-    <div className="stack pageFade">
-      <PageIntro title="Performance" note="Presets and tuning controls route through official performance UI when visible." path={officialPaths.performance} api={api} />
-      <div className="grid three">{["Custom", "Office Mode", "Beginner Mode", "Game Mode"].map((preset) => <button className="panel actionPanel" key={preset} onClick={async () => { await api.runOverlayAction({ page: "Performance", action: "Wait for Performance page", targetOfficialPath: officialPaths.performance, commandType: "waitForText", text: "Performance" }); await api.runOverlayAction({ page: "Performance", action: `Preset ${preset}`, targetOfficialPath: officialPaths.performance, commandType: "clickByText", text: preset }); }}><span>Preset</span><strong>{preset}</strong><p>Applied through official web driver</p></button>)}</div>
-      <div className="tabs">{["Normal Mode", "Advanced Settings", "Recalibrate"].map((tab) => <button key={tab} onClick={() => api.runOverlayAction({ page: "Performance", action: `Open ${tab}`, targetOfficialPath: officialPaths.performance, commandType: "clickByText", text: tab })}>{tab}</button>)}</div>
-      <div className="grid two">
+    <div className="controlBoard pageFade">
+      <PageIntro title="Performance" note="Trigger, dead zone, presets." path={officialPaths.performance} api={api} />
+      <section className="controlHero performanceHero">
+        <div><span className="eyebrow">Tuning</span><h3>{derived.lastOverlayAction?.page === "Performance" ? derived.lastOverlayAction.action : "Balanced"}</h3></div>
+        <div className="tabs">{["Normal", "Advanced", "Recalibrate"].map((tab) => <button key={tab} onClick={() => api.runOverlayAction({ page: "Performance", action: `Open ${tab}`, targetOfficialPath: officialPaths.performance, commandType: "clickByText", text: tab === "Advanced" ? "Advanced Settings" : tab })}>{tab}</button>)}</div>
+      </section>
+      <div className="presetGrid">{["Custom", "Office Mode", "Beginner Mode", "Game Mode"].map((preset) => <button className="presetTile" key={preset} onClick={async () => { await api.runOverlayAction({ page: "Performance", action: "Wait for Performance page", targetOfficialPath: officialPaths.performance, commandType: "waitForText", text: "Performance" }); await api.runOverlayAction({ page: "Performance", action: `Preset ${preset}`, targetOfficialPath: officialPaths.performance, commandType: "clickByText", text: preset }); }}><span>Preset</span><strong>{preset.replace(" Mode", "")}</strong></button>)}</div>
+      <div className="controlDock">
         <ControlPanel title="Trigger Distance" value={trigger} setValue={setTrigger} onApply={(value) => api.runOverlayAction({ page: "Performance", action: `Trigger Distance ${value}`, targetOfficialPath: officialPaths.performance, commandType: "setRangeByNearbyLabel", text: "Trigger Distance", nearText: "Trigger", value })} />
-        <section className="panel"><span>Fast Trigger</span><strong>{derived.lastOverlayAction?.action === "Fast Trigger" ? "Requested" : "Ready"}</strong><button onClick={() => api.runOverlayAction({ page: "Performance", action: "Fast Trigger", targetOfficialPath: officialPaths.performance, commandType: "setToggleByLabel", text: "Fast Trigger" })}>Toggle in Official Driver</button></section>
+        <section className="panel fastTrigger"><span>Fast Trigger</span><strong>{derived.lastOverlayAction?.action === "Fast Trigger" ? "Requested" : "Ready"}</strong><button onClick={() => api.runOverlayAction({ page: "Performance", action: "Fast Trigger", targetOfficialPath: officialPaths.performance, commandType: "setToggleByLabel", text: "Fast Trigger" })}>Toggle</button></section>
         <ControlPanel title="Top Dead Zone" value={deadTop} setValue={setDeadTop} onApply={(value) => api.runOverlayAction({ page: "Performance", action: `Top Dead Zone ${value}`, targetOfficialPath: officialPaths.performance, commandType: "setRangeByNearbyLabel", text: "Top Dead Zone", nearText: "Dead Zone", value })} />
         <ControlPanel title="Bottom Dead Zone" value={deadBottom} setValue={setDeadBottom} onApply={(value) => api.runOverlayAction({ page: "Performance", action: `Bottom Dead Zone ${value}`, targetOfficialPath: officialPaths.performance, commandType: "setRangeByNearbyLabel", text: "Bottom Dead Zone", nearText: "Dead Zone", value })} />
       </div>
-      <button className="primary" onClick={() => api.runOverlayAction({ page: "Performance", action: "Recalibrate", targetOfficialPath: officialPaths.performance, commandType: "clickByText", text: "Recalibrate" })}>Recalibrate in Official Driver</button>
     </div>
   );
 }

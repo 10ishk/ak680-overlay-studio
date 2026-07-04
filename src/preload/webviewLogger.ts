@@ -628,11 +628,13 @@ function findInput(command: WebviewCommand, type?: string): HTMLInputElement | H
 }
 
 function findClickableByText(text: string, tag?: string): HTMLElement | null {
-  const selector = tag ? `${tag}, [role='button'], [role='tab'], label` : "button, [role='button'], [role='tab'], label, li, div, span, a";
-  const candidates = Array.from(document.querySelectorAll(selector)).filter((item) => item instanceof HTMLElement && isVisibleEnabled(item));
-  const exact = candidates.find((item) => includesText(item, text, true));
-  const loose = exact ?? candidates.find((item) => includesText(item, text));
-  return loose instanceof HTMLElement ? loose : null;
+  const controls = tag ? `${tag}, [role='button'], [role='tab'], label` : "button, a, [role='button'], [role='tab'], label";
+  const controlMatch = bestTextCandidate(controls, text);
+  if (controlMatch) return controlMatch;
+
+  const textMatch = bestTextCandidate("button, a, [role='button'], [role='tab'], label, li, div, span", text);
+  if (!textMatch) return null;
+  return closestClickable(textMatch) ?? textMatch;
 }
 
 function includesText(element: Element, text: string, exact = false): boolean {
@@ -645,6 +647,45 @@ function findByText(text: string, tag?: string): HTMLElement | null {
   const selector = tag ?? "button, label, [role='tab'], [role='button'], h1, h2, h3, p, span, div";
   const candidates = Array.from(document.querySelectorAll(selector)).filter((item) => item instanceof HTMLElement && isVisibleEnabled(item));
   return candidates.find((item) => includesText(item, text, true)) as HTMLElement | undefined ?? candidates.find((item) => includesText(item, text)) as HTMLElement | undefined ?? null;
+}
+
+function bestTextCandidate(selector: string, text: string): HTMLElement | null {
+  const needle = normalizeText(text);
+  if (!needle) return null;
+  const candidates = Array.from(document.querySelectorAll(selector))
+    .filter((item): item is HTMLElement => item instanceof HTMLElement && isVisibleEnabled(item) && includesText(item, text))
+    .map((element) => ({ element, score: scoreTextCandidate(element, needle) }))
+    .filter((item) => item.score > -Infinity)
+    .sort((a, b) => b.score - a.score);
+  return candidates[0]?.element ?? null;
+}
+
+function scoreTextCandidate(element: HTMLElement, needle: string): number {
+  const text = normalizeText(element.textContent);
+  if (!text.includes(needle)) return -Infinity;
+  const rect = element.getBoundingClientRect();
+  const area = rect.width * rect.height;
+  let score = 0;
+  if (text === needle) score += 100;
+  else if (text.startsWith(needle)) score += 45;
+  else score += 20;
+  if (isNativeControl(element)) score += 70;
+  if (element.getAttribute("role") === "button" || element.getAttribute("role") === "tab") score += 55;
+  if (element.tagName.toLowerCase() === "label") score += 40;
+  if (element.getAttribute("aria-selected") === "true" || element.classList.contains("active") || element.classList.contains("selected")) score -= 15;
+  if (area > 0) score -= Math.min(area / 9000, 35);
+  score -= Math.max(text.length - needle.length, 0) / 14;
+  return score;
+}
+
+function closestClickable(element: HTMLElement): HTMLElement | null {
+  const clickable = element.closest("button, a, [role='button'], [role='tab'], label");
+  return clickable instanceof HTMLElement && isVisibleEnabled(clickable) ? clickable : null;
+}
+
+function isNativeControl(element: HTMLElement): boolean {
+  const tag = element.tagName.toLowerCase();
+  return tag === "button" || tag === "a" || tag === "input" || tag === "select" || tag === "textarea";
 }
 
 function findNearbyRange(text: string): HTMLInputElement | null {
@@ -681,12 +722,28 @@ function findInputNearText(text: string, type?: string): HTMLInputElement | HTML
 
 function findChoiceByLabel(text: string): HTMLElement | null {
   const selector = "label, button, [role='radio'], [role='switch'], [role='checkbox'], input[type='checkbox'], input[type='radio']";
-  const direct = Array.from(document.querySelectorAll(selector)).find((item) => item instanceof HTMLElement && isVisibleEnabled(item) && includesText(item, text));
-  if (direct instanceof HTMLElement) return direct;
+  const direct = bestTextCandidate(selector, text);
+  if (direct) return direct;
   const anchor = findByText(text);
   const scope = anchor?.closest("section, article, li, form, fieldset, .card, .item, .row, div");
-  const nearChoice = scope ? Array.from(scope.querySelectorAll("button, label, [role='switch'], [role='checkbox'], input[type='checkbox'], input[type='radio']")).find((item) => item instanceof HTMLElement && isVisibleEnabled(item)) : undefined;
+  const nearChoice = scope ? bestElementCandidate(scope, "button, label, [role='switch'], [role='checkbox'], input[type='checkbox'], input[type='radio']") : undefined;
   return nearChoice instanceof HTMLElement ? nearChoice : null;
+}
+
+function bestElementCandidate(scope: Element, selector: string): HTMLElement | null {
+  const candidates = Array.from(scope.querySelectorAll(selector))
+    .filter((item): item is HTMLElement => item instanceof HTMLElement && isVisibleEnabled(item))
+    .map((element) => {
+      const rect = element.getBoundingClientRect();
+      const area = rect.width * rect.height;
+      let score = isNativeControl(element) ? 60 : 25;
+      if (element.getAttribute("role") === "switch" || element.getAttribute("role") === "checkbox" || element.getAttribute("role") === "radio") score += 45;
+      if (element instanceof HTMLInputElement && (element.type === "checkbox" || element.type === "radio")) score += 70;
+      score -= Math.min(area / 9000, 30);
+      return { element, score };
+    })
+    .sort((a, b) => b.score - a.score);
+  return candidates[0]?.element ?? null;
 }
 
 function isSupportedInput(element: unknown, type?: string): element is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement {

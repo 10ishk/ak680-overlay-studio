@@ -1,5 +1,6 @@
 import React, { Component, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { motion } from "framer-motion";
 import {
   Activity,
   Brush,
@@ -308,7 +309,7 @@ function App() {
       </aside>
       <section className="workspace">
         <header className="topbar">
-          <div><h1>{bridge.metadata.name}</h1><p>Control-first overlay for {bridge.metadata.targetDevice}</p></div>
+          <div><h1>{bridge.metadata.name}</h1><p>{bridge.metadata.targetDevice}</p></div>
           <div className="statusRow">
             <span className="pill good">{derived.connectedDeviceStatus}</span>
             <span className="pill">Official {derived.currentRoute}</span>
@@ -317,7 +318,7 @@ function App() {
             <select value={theme} onChange={(event) => setThemePersisted(event.target.value)}>{themes.map((item) => <option key={item}>{item}</option>)}</select>
           </div>
         </header>
-        <main className="content">{content}</main>
+        <motion.main className="content" key={page} initial={{ opacity: 0, y: 10, scale: 0.99 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.22, ease: "easeOut" }}>{content}</motion.main>
       </section>
       <aside className="logDrawer"><UtilityDrawer derived={derived} actions={logState.actions} events={logState.events} exportLogs={exportLogs} /></aside>
       {toast && <div className="toast" onAnimationEnd={() => setToast(undefined)}>{toast}</div>}
@@ -326,37 +327,39 @@ function App() {
   );
 }
 
-const connectionText = ["Connect", "Wired connection", "Device", "AK680"];
-
 function Dashboard(props: { api: OverlayApi; derived: ReturnType<typeof deriveLogState>; session: { active: boolean }; startSession: () => void; stopSession: () => void }) {
   return (
-    <div className="stack pageFade">
+    <div className="dashboard pageFade">
       <section className="hero dashboardHero">
-        <div><span className="eyebrow">Overlay controls</span><h2>Configure AK680 V2 from the clean overlay.</h2><p>The official AJAZZ driver stays mounted behind the scenes for WebHID. Reveal it only when a permission prompt or adapter result needs manual help.</p></div>
-        <div className="heroActions"><button className="primary" onClick={async () => { await props.api.runOverlayAction({ page: "Dashboard", action: "Detect official driver", targetOfficialPath: officialPaths.keymap, commandType: "detectOfficialState" }); await props.api.runOverlayAction({ page: "Dashboard", action: "Check remembered AK680 permission", targetOfficialPath: officialPaths.keymap, commandType: "getRememberedHidDevices" }); await props.api.runOverlayAction({ page: "Dashboard", action: "Connect AK680 V2", targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: "Connect", tag: "button" }); }}>Connect AK680 V2</button><button onClick={() => props.api.openOfficialPath(officialPaths.keymap, true)}>Open Official Connect</button></div>
+        <div>
+          <span className="eyebrow">AK680 V2</span>
+          <h2>Clean controls. Official driver underneath.</h2>
+          <div className="statusChips">
+            <StatusChip label="Device" value={props.derived.deviceConnectStatus} tone={props.derived.deviceConnectStatus === "Connected" ? "good" : "idle"} />
+            <StatusChip label="Route" value={props.derived.currentRoute} />
+            <StatusChip label="Last" value={props.derived.lastOverlayAction?.status ?? "Idle"} tone={props.derived.lastOverlayAction?.status === "success" ? "good" : props.derived.lastOverlayAction?.status === "failure" ? "bad" : "idle"} />
+          </div>
+        </div>
+        <div className="heroActions"><button className="primary" onClick={async () => { await props.api.runOverlayAction({ page: "Dashboard", action: "Detect official driver", targetOfficialPath: officialPaths.keymap, commandType: "detectOfficialState" }); await props.api.runOverlayAction({ page: "Dashboard", action: "Check remembered AK680 permission", targetOfficialPath: officialPaths.keymap, commandType: "getRememberedHidDevices" }); await props.api.runOverlayAction({ page: "Dashboard", action: "Connect AK680 V2", targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: "Connect", tag: "button" }); }}>Connect</button><button onClick={() => props.api.openOfficialPath(officialPaths.keymap, true)}>Official</button></div>
       </section>
-      <div className="grid three">
-        <Metric title="AK680 V2 connection" value={props.derived.deviceConnectStatus} note="Best available observed signal" />
-        <Metric title="Official driver" value={props.derived.officialDriverStatus} note="Embedded webview remains mounted" />
-        <Metric title="WebHID/device" value={props.derived.latestDeviceMetadata ? "Device selected" : "Permission may be needed"} note="VID 3141 / PID 32956 target" />
-        <Metric title="Current official page" value={props.derived.currentRoute} note="Route-level adapter state" />
-        <Metric title="Active profile" value="Default" note="Profile selection placeholder" />
-        <Metric title="Last applied action" value={props.derived.lastOverlayAction?.message ?? "No overlay action yet"} note={props.derived.lastOverlayAction?.action ?? "Use a control page"} />
-        <Metric title="Diagnostics status" value={`${props.derived.eventCount} events`} note={`${props.derived.markersCount} markers, logging secondary`} />
+      <div className="commandGrid">
+        <CommandTile title="Lighting" meta="Effects, color, speed" onClick={() => props.api.openOfficialPath(officialPaths.lighting)} />
+        <CommandTile title="Performance" meta="Trigger and response" onClick={() => props.api.openOfficialPath(officialPaths.performance)} />
+        <CommandTile title="Keymap" meta="Keys and layers" onClick={() => props.api.openOfficialPath(officialPaths.keymap)} />
+        <CommandTile title="Advanced" meta="RS, DKS, SOCD" onClick={() => props.api.openOfficialPath(officialPaths.advancedKeys)} />
+        <CommandTile title="Macros" meta="Record and assign" onClick={() => props.api.openOfficialPath(officialPaths.macros)} />
+        <CommandTile title={props.session.active ? "Stop Capture" : "Capture"} meta={`${props.derived.eventCount} events`} onClick={props.session.active ? props.stopSession : props.startSession} />
       </div>
-      <div className="actions">
-        <button onClick={() => props.api.openOfficialPath(officialPaths.lighting)}>Lighting</button>
-        <button onClick={() => props.api.openOfficialPath(officialPaths.performance)}>Performance</button>
-        <button onClick={() => props.api.openOfficialPath(officialPaths.keymap)}>Keymap</button>
-        <button onClick={() => props.api.openOfficialPath(officialPaths.advancedKeys)}>Advanced Keys</button>
-        <button onClick={() => props.api.openOfficialPath(officialPaths.macros)}>Macros</button>
-        <button onClick={() => props.api.openOfficialPath(officialPaths.settings)}>Settings</button>
-        <button onClick={props.session.active ? props.stopSession : props.startSession}>{props.session.active ? "Stop Capture" : "Start Capture"}</button>
-      </div>
-      <ActionTips items={connectionText} />
-      <div className="notice">If a device picker appears: click the official connect button if shown, select AJAZZ AK680 V2, then allow permission.</div>
     </div>
   );
+}
+
+function StatusChip({ label, value, tone = "idle" }: { label: string; value: string; tone?: "good" | "bad" | "idle" }) {
+  return <span className={`statusChip ${tone}`}><small>{label}</small>{value}</span>;
+}
+
+function CommandTile({ title, meta, onClick }: { title: string; meta: string; onClick: () => void }) {
+  return <button className="commandTile" onClick={onClick}><span>{meta}</span><strong>{title}</strong></button>;
 }
 
 function LightingPage({ api, derived }: { api: OverlayApi; derived: ReturnType<typeof deriveLogState> }) {
@@ -423,7 +426,7 @@ function RouteCards({ page, path, api, cards }: { page: Page; path: OfficialPath
 }
 
 function PageIntro({ title, note, path, api }: { title: string; note: string; path: OfficialPath; api: OverlayApi }) {
-  return <section className="pageIntro"><div><span className="eyebrow">Overlay control</span><h2>{title}</h2><p>{note}</p></div><div className="heroActions"><button className="primary" onClick={() => api.runOverlayAction({ page: title as Page, action: `Open ${path}`, targetOfficialPath: path, commandType: "navigateToPath" })}>Prepare Official Page</button><button onClick={() => api.openOfficialPath(path, true)}>Show Official Driver</button></div></section>;
+  return <section className="pageIntro"><div><span className="eyebrow">Control</span><h2>{title}</h2><p>{note}</p></div><div className="heroActions"><button className="primary" onClick={() => api.runOverlayAction({ page: title as Page, action: `Open ${path}`, targetOfficialPath: path, commandType: "navigateToPath" })}>Prepare</button><button onClick={() => api.openOfficialPath(path, true)}>Official</button></div></section>;
 }
 
 function OfficialDriverPanel({ mode, setMode, api }: { mode: WebviewMode; setMode: (mode: WebviewMode) => void; api: OverlayApi }) {
@@ -674,10 +677,6 @@ function ActionHistory({ actions, compact = false }: { actions: OverlayAction[];
 
 function ControlPanel({ title, value, setValue, onApply }: { title: string; value: number; setValue: (value: number) => void; onApply: (value: number) => void }) {
   return <section className="control"><label>{title}</label><input type="range" min="0" max="100" value={value} onChange={(event) => setValue(Number(event.target.value))} /><button onClick={() => onApply(value)}>Apply {value}</button></section>;
-}
-
-function ActionTips({ items }: { items: string[] }) {
-  return <div className="notice">Connection flow is best-effort: the adapter looks for visible official text such as {items.join(", ")}. Browser permission prompts still require user approval.</div>;
 }
 
 function MarkerInput(props: { marker: string; setMarker: (marker: string) => void; addMarker: (label?: string) => void }) {

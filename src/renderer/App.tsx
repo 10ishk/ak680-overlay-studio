@@ -201,7 +201,10 @@ function App() {
     const url = toOfficialUrl(targetPath);
     setOfficialTargetUrl((current) => current === url ? current : url);
     if (switchToOfficial) setPage("Official Driver");
-    setLogState((state) => appendEvent(state, normalizeGuestEvent({ source: "host", type: "route-open", phase: "event", url, summary: `Open official route ${targetPath}` }, state.officialUrl)));
+    setLogState((state) => {
+      const nextState = switchToOfficial ? setWebviewMode(state, "Docked") : state;
+      return appendEvent(nextState, normalizeGuestEvent({ source: "host", type: "route-open", phase: "event", url, summary: `Open official route ${targetPath}` }, state.officialUrl));
+    });
   }, []);
 
   const sendCommand = useCallback((command: WebviewCommand): void => {
@@ -329,7 +332,7 @@ function Dashboard(props: { api: OverlayApi; derived: ReturnType<typeof deriveLo
   return (
     <div className="stack pageFade">
       <section className="hero dashboardHero">
-        <div><span className="eyebrow">Overlay controls</span><h2>Configure AK680 V2 through the official driver, from a cleaner overlay.</h2><p>Uses the official driver safely behind the scenes. Open official view if a permission prompt or adapter result needs manual help.</p></div>
+        <div><span className="eyebrow">Overlay controls</span><h2>Configure AK680 V2 from the clean overlay.</h2><p>The official AJAZZ driver stays mounted behind the scenes for WebHID. Reveal it only when a permission prompt or adapter result needs manual help.</p></div>
         <div className="heroActions"><button className="primary" onClick={async () => { await props.api.runOverlayAction({ page: "Dashboard", action: "Detect official driver", targetOfficialPath: officialPaths.keymap, commandType: "detectOfficialState" }); await props.api.runOverlayAction({ page: "Dashboard", action: "Check remembered AK680 permission", targetOfficialPath: officialPaths.keymap, commandType: "getRememberedHidDevices" }); await props.api.runOverlayAction({ page: "Dashboard", action: "Connect AK680 V2", targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: "Connect", tag: "button" }); }}>Connect AK680 V2</button><button onClick={() => props.api.openOfficialPath(officialPaths.keymap, true)}>Open Official Connect</button></div>
       </section>
       <div className="grid three">

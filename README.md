@@ -49,11 +49,13 @@ Connection status is derived from observed WebHID events, official DOM activity,
 
 ## Official View Modes
 
+- **Hidden**: default mode. The official webview stays mounted and connected behind the clean overlay.
 - **Docked**: full official webview is visible for inspection and manual fallback.
 - **Compact**: small inspector/debug view while the overlay is primary.
-- **Hidden**: official webview stays mounted and connected but visually de-emphasized.
 
 The webview remains mounted so official app state and WebHID connection can stay alive. Switching pages, themes, or Docked/Compact/Hidden mode should not remount the official page.
+
+Use **Open Official Connect** or **Show Official Driver** when a browser permission prompt or official confirmation needs manual help; those paths reveal the official view in Docked mode.
 
 If the official view looks blank, use **Reload** or **Open Custom Keys** from the official view toolbar. The base official route can render a partial white page, so the overlay defaults to `/custom-keys` and only tries one automatic redirect from `/` per app start.
 

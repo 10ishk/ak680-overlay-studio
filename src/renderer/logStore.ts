@@ -87,7 +87,7 @@ export const initialLogState: LogState = {
   officialUrl: bridge.metadata.officialDriverUrl,
   session: { active: false },
   actions: [],
-  webviewMode: "Docked",
+  webviewMode: "Hidden",
   events: [
     {
       id: "boot",

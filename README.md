@@ -27,7 +27,7 @@ npm install
 npm run dev
 ```
 
-The app opens an Electron window with the overlay shell and the official driver loaded from `https://ajazz.driveall.cn/`.
+The app opens an Electron window with the overlay shell and the official driver loaded at `https://ajazz.driveall.cn/custom-keys`.
 
 ## Checks
 
@@ -54,6 +54,8 @@ Connection status is derived from observed WebHID events, official DOM activity,
 - **Hidden**: official webview stays mounted and connected but visually de-emphasized.
 
 The webview remains mounted so official app state and WebHID connection can stay alive.
+
+If the official view looks blank, use **Reload Custom Keys** or **Open Custom Keys** from the official view controls. The base official route can render a partial white page, so the overlay defaults to `/custom-keys`.
 
 ## Overlay Controls
 

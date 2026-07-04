@@ -1,7 +1,7 @@
 export const OFFICIAL_ORIGIN = "https://ajazz.driveall.cn";
 
 export const officialPaths = {
-  home: "/",
+  home: "/custom-keys",
   keymap: "/custom-keys",
   lighting: "/lighting",
   macros: "/macro",
@@ -84,9 +84,9 @@ export function isAllowedOfficialUrl(url: string): boolean {
 export function pathFromUrl(url: string): OfficialPath {
   try {
     const parsed = new URL(url);
-    return allowedPaths.has(parsed.pathname) ? parsed.pathname as OfficialPath : officialPaths.home;
+    return allowedPaths.has(parsed.pathname) ? parsed.pathname as OfficialPath : officialPaths.keymap;
   } catch {
-    return officialPaths.home;
+    return officialPaths.keymap;
   }
 }
 

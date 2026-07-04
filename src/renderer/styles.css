@@ -141,6 +141,9 @@ webview { display: block; width: 100%; height: 100%; border-radius: 16px; backgr
   background: var(--panel-strong);
   box-shadow: 0 24px 90px rgba(0,0,0,0.36);
   padding: 8px;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 8px;
   transition: width 180ms ease, height 180ms ease, opacity 180ms ease, transform 180ms ease;
 }
 .officialHost.docked {
@@ -158,7 +161,25 @@ webview { display: block; width: 100%; height: 100%; border-radius: 16px; backgr
   pointer-events: none;
   transform: translateY(12px);
 }
-.officialHost webview { border-radius: 12px; }
+.officialHost webview { border-radius: 12px; background: #08090b; min-height: 0; }
+.officialHostBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 12px;
+}
+.officialHostBar span { margin-right: auto; color: var(--text); }
+.officialHostBar button { padding: 6px 8px; border-radius: 999px; font-size: 11px; }
+.officialRouteBanner {
+  padding: 9px 12px;
+  border: 1px solid rgba(255,184,77,0.24);
+  border-radius: 12px;
+  background: rgba(255,184,77,0.1);
+  color: #ffd18f;
+  font-size: 12px;
+}
 .control { padding: 16px; display: grid; grid-template-columns: 1fr 2fr auto; gap: 12px; align-items: center; }
 .control input[type="range"] { accent-color: var(--accent); }
 .segmented { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }

@@ -411,8 +411,8 @@ function baseResult(command: WebviewCommand, success: boolean, message: string):
 }
 
 function navigateToPath(command: WebviewCommand): CommandResult {
-  const path = command.path ?? "/";
-  if (!["/", "/custom-keys", "/lighting", "/macro", "/performance", "/advanced-keys", "/settings"].includes(path)) {
+  const path = command.path === "/" ? "/custom-keys" : command.path ?? "/custom-keys";
+  if (!["/custom-keys", "/lighting", "/macro", "/performance", "/advanced-keys", "/settings"].includes(path)) {
     return baseResult(command, false, `Blocked unknown official path ${path}`);
   }
   if (location.pathname !== path) {

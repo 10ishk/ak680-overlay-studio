@@ -38,7 +38,7 @@ export function getBridge(): Ak680Bridge {
       metadata: {
         name: "AK680 Overlay Studio",
         version: "0.1.0",
-        officialDriverUrl: "https://ajazz.driveall.cn/",
+        officialDriverUrl: "https://ajazz.driveall.cn/custom-keys",
         webviewPreloadPath: undefined,
         targetDevice: "AJAZZ AK680 V2",
         vid: 3141,

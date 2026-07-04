@@ -1,8 +1,14 @@
+import type { OfficialNavigator } from "./ajazzRouteAdapter";
+
 export function detectRoute(url = "https://ajazz.driveall.cn/") {
   return { section: "socd", url };
 }
 
-export function goToOfficialPath(path: string): string {
-  // TODO: observe official SOCD routes only. Do not automate SOCD writes here.
-  return new URL(path, "https://ajazz.driveall.cn/").toString();
+export function getOfficialPath(): string {
+  return "/advanced-keys";
+}
+
+export function goToOfficialPath(navigate: OfficialNavigator): void {
+  // TODO: observe SOCD route context only. Do not automate SOCD setup in MVP.
+  navigate(getOfficialPath());
 }

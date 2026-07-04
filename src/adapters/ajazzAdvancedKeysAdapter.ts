@@ -1,8 +1,14 @@
+import type { OfficialNavigator } from "./ajazzRouteAdapter";
+
 export function detectRoute(url = "https://ajazz.driveall.cn/") {
   return { section: "advanced-keys", url };
 }
 
-export function goToOfficialPath(path: string): string {
-  // TODO: locate official advanced-key DOM routes later. No automation in MVP.
-  return new URL(path, "https://ajazz.driveall.cn/").toString();
+export function getOfficialPath(): string {
+  return "/advanced-keys";
+}
+
+export function goToOfficialPath(navigate: OfficialNavigator): void {
+  // TODO: future DOM control can observe advanced-key state. Do not automate SOCD or write packets.
+  navigate(getOfficialPath());
 }

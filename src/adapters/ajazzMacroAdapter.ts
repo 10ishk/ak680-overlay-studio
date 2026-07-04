@@ -1,8 +1,14 @@
+import type { OfficialNavigator } from "./ajazzRouteAdapter";
+
 export function detectRoute(url = "https://ajazz.driveall.cn/") {
   return { section: "macros", url };
 }
 
-export function goToOfficialPath(path: string): string {
-  // TODO: map macro pages after official DOM behavior is documented.
-  return new URL(path, "https://ajazz.driveall.cn/").toString();
+export function getOfficialPath(): string {
+  return "/macro";
+}
+
+export function goToOfficialPath(navigate: OfficialNavigator): void {
+  // TODO: future DOM control can observe macro state. No recording automation or writes here.
+  navigate(getOfficialPath());
 }

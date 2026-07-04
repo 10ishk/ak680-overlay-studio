@@ -37,6 +37,17 @@ WebHID permission is scoped to the official AJAZZ origin for this prototype.
 
 Open **Official Driver** from the sidebar or dashboard. The official webview is where real keyboard communication happens. AK680 Overlay Studio observes and labels activity only.
 
+The shell can navigate the official webview to known route-level pages:
+
+- `/custom-keys`
+- `/lighting`
+- `/macro`
+- `/performance`
+- `/advanced-keys`
+- `/settings`
+
+This is URL navigation only. The overlay does not click controls inside the official page, submit forms, automate SOCD, or send keyboard packets.
+
 ## Logging
 
 Phase 3 logging is active. The official webview uses a guest preload logger that observes:
@@ -57,7 +68,7 @@ DOM logs are intentionally conservative. Passwords and obvious token/secret/auth
 
 ## Add Markers
 
-Use the log drawer or **Logs** page to add manual markers such as:
+Use the log drawer or **Logs** page to add manual markers. Quick marker buttons are available for:
 
 - SOCD baseline
 - SOCD ON
@@ -65,8 +76,21 @@ Use the log drawer or **Logs** page to add manual markers such as:
 - RT 1.2mm
 - Lighting Snowfall
 - Macro Save
+- Before change
+- After change
 
-Markers appear in the live log, include the current official route, and are included in exported JSON.
+You can also type a custom marker label. Markers appear in the live log, include the current official route, and are included in exported JSON.
+
+## Capture Sessions
+
+Use **Start Capture Session** before a manual test pass and **Stop Capture Session** when done.
+
+- Starting a session adds a `Session started` marker.
+- Stopping a session adds a `Session stopped` marker.
+- Session state appears in the top bar and live log drawer.
+- Session metadata is included in exported JSON.
+
+Capture sessions are local, in-memory helpers only. They do not upload, persist, or write logs automatically.
 
 ## Export Logs
 
@@ -79,6 +103,7 @@ Exports include:
 - official page URL/current route
 - latest device metadata
 - event count and marker count
+- capture session status, start time, end time, and session marker count
 - full events array
 - markers array
 - safety note
@@ -89,13 +114,15 @@ Logs are not uploaded anywhere, are not written automatically to the repo, and a
 
 - Electron desktop shell
 - React renderer with dark-first responsive UI
-- Theme selector for Carbon Orange, Obsidian, Neon Blue, Violet, Frost, Matcha, and Terminal
+- Persisted theme selector for Carbon Orange, Obsidian, Neon Blue, Violet, Frost, Matcha, and Terminal
 - Visible official AJAZZ webview
+- Route-level official webview navigation from overlay feature pages
 - WebHID permission handling for the official AJAZZ origin
 - Live WebHID logging from the embedded official webview
 - Conservative DOM/activity logging from the embedded official webview
 - Dashboard, feature placeholders, settings, and logs views
 - Manual marker events with current official route
+- Capture Session start/stop workflow with quick markers
 - Structured JSON export and clear actions
 - Adapter placeholder files for future official DOM control
 
@@ -105,6 +132,7 @@ Logs are not uploaded anywhere, are not written automatically to the repo, and a
 - The app does not include native HID writes or packet sending.
 - Feature pages are placeholders and intentionally do not write to the keyboard.
 - The official webview remains the only actor that writes to the keyboard.
+- Overlay navigation is limited to known official URLs and does not operate controls inside the official web app.
 - The logger observes calls and packets but does not decode the protocol yet.
 - Logging is in-memory only until manual export.
 - SOCD automation is not implemented.

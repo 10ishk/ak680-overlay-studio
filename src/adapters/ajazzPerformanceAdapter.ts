@@ -1,8 +1,14 @@
+import type { OfficialNavigator } from "./ajazzRouteAdapter";
+
 export function detectRoute(url = "https://ajazz.driveall.cn/") {
   return { section: "performance", url };
 }
 
-export function goToOfficialPath(path: string): string {
-  // TODO: map performance presets to official web driver views without sending packets.
-  return new URL(path, "https://ajazz.driveall.cn/").toString();
+export function getOfficialPath(): string {
+  return "/performance";
+}
+
+export function goToOfficialPath(navigate: OfficialNavigator): void {
+  // TODO: future DOM control can observe performance state. No native writes or packet sending.
+  navigate(getOfficialPath());
 }

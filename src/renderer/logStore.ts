@@ -39,6 +39,13 @@ export type OverlayLogEvent = DeviceMetadata & {
 export type LogState = {
   events: OverlayLogEvent[];
   officialUrl: string;
+  session: CaptureSession;
+};
+
+export type CaptureSession = {
+  active: boolean;
+  startedAt?: string;
+  endedAt?: string;
 };
 
 export type LogDerivedState = {
@@ -56,6 +63,7 @@ const bridge = getBridge();
 
 export const initialLogState: LogState = {
   officialUrl: bridge.metadata.officialDriverUrl,
+  session: { active: false },
   events: [
     {
       id: "boot",
@@ -120,6 +128,7 @@ export function normalizeGuestEvent(payload: unknown, officialUrl: string): Over
 export function appendEvent(state: LogState, event: OverlayLogEvent): LogState {
   return {
     officialUrl: event.url ?? state.officialUrl,
+    session: state.session,
     events: [event, ...state.events]
   };
 }
@@ -137,6 +146,16 @@ export function appendMarker(state: LogState, label: string): LogState {
     route: routeFromUrl(state.officialUrl),
     url: state.officialUrl
   });
+}
+
+export function startCaptureSession(state: LogState): LogState {
+  const startedAt = new Date().toISOString();
+  return appendMarker({ ...state, session: { active: true, startedAt, endedAt: undefined } }, "Session started");
+}
+
+export function stopCaptureSession(state: LogState): LogState {
+  const endedAt = new Date().toISOString();
+  return appendMarker({ ...state, session: { ...state.session, active: false, endedAt } }, "Session stopped");
 }
 
 export function deriveLogState(state: LogState): LogDerivedState {
@@ -171,6 +190,13 @@ export function exportLogJson(state: LogState): string {
       latestDeviceMetadata: derived.latestDeviceMetadata ?? null,
       eventCount: state.events.length,
       markersCount: markers.length,
+      session: {
+        status: state.session.active ? "active" : state.session.endedAt ? "ended" : "not-started",
+        active: state.session.active,
+        startedAt: state.session.startedAt ?? null,
+        endedAt: state.session.endedAt ?? null,
+        markerCount: markers.filter((event) => isSessionMarker(event)).length
+      },
       events: [...state.events].reverse(),
       markers: [...markers].reverse(),
       safetyNote: "Logs may contain device protocol data. Do not commit raw logs publicly unless they are intentionally reviewed, tiny, and redacted."
@@ -178,6 +204,10 @@ export function exportLogJson(state: LogState): string {
     null,
     2
   );
+}
+
+function isSessionMarker(event: OverlayLogEvent): boolean {
+  return event.source === "marker" && (event.markerLabel === "Session started" || event.markerLabel === "Session stopped");
 }
 
 export function routeFromUrl(url: string): string {

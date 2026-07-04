@@ -246,6 +246,45 @@ h3 { font-size: 16px; margin-bottom: 14px; }
     radial-gradient(circle at 86% 26%, rgba(167,139,250,0.2), transparent 30%),
     var(--panel);
 }
+.lightingStudio {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 16% 20%, rgba(127,140,255,0.15), transparent 30%),
+    radial-gradient(circle at 78% 18%, rgba(255,77,145,0.11), transparent 28%),
+    var(--panel);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.24);
+}
+.lightingStudioTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.lightingStudio h3 {
+  margin: 0;
+  font-size: clamp(24px, 3vw, 34px);
+  letter-spacing: -0.01em;
+}
+.lightingModeBar {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.lightingModeBar button {
+  min-width: 96px;
+  text-transform: capitalize;
+}
+.lightingModeBar button.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
 .presetGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -355,6 +394,7 @@ webview { display: block; width: 100%; height: 100%; border-radius: 16px; backgr
 .segmented button.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 .swatches { display: flex; gap: 10px; flex-wrap: wrap; }
 .swatches button { width: 34px; height: 34px; padding: 0; border-radius: 999px; border: 2px solid var(--border); }
+.swatches button.active { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
 .keymapLayout {
   display: grid;

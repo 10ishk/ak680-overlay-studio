@@ -17,14 +17,16 @@ export function KeyboardPreview({
   selectedKey,
   onKeySelect
 }: KeyboardPreviewProps) {
+  const previewStyle = {
+    "--keyboard-columns": AK680_LAYOUT_WIDTH,
+    "--keyboard-rows": AK680_LAYOUT_HEIGHT,
+    "--keyboard-accent": accentColor
+  } as CSSProperties;
+
   return (
     <div
       className={`keyboardPreview lighting-${lightingMode}`}
-      style={{
-        "--keyboard-columns": AK680_LAYOUT_WIDTH,
-        "--keyboard-rows": AK680_LAYOUT_HEIGHT,
-        "--keyboard-accent": accentColor
-      } as CSSProperties}
+      style={previewStyle}
       aria-label="AJAZZ AK680 V2 keyboard preview"
     >
       <div className="keyboardPreview__handle" />

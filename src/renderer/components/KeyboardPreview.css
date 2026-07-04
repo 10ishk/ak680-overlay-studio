@@ -1,9 +1,9 @@
 .keyboardPreview {
-  --unit: clamp(33px, 4.55vw, 62px);
-  --gap: clamp(4px, 0.52vw, 8px);
+  --unit: clamp(26px, 3vw, 45px);
+  --gap: clamp(4px, 0.48vw, 7px);
   position: relative;
-  width: min(100%, calc(var(--keyboard-columns) * var(--unit) + 104px));
-  min-height: calc(var(--keyboard-rows) * var(--unit) + 74px);
+  width: min(100%, calc(var(--keyboard-columns) * var(--unit) + 96px));
+  min-height: calc(var(--keyboard-rows) * var(--unit) + 86px);
   display: grid;
   place-items: center;
   perspective: 1100px;
@@ -11,44 +11,57 @@
 
 .keyboardPreview__handle {
   position: absolute;
-  left: 8px;
-  width: 15px;
-  height: 72px;
-  border: 4px solid rgba(232, 238, 255, 0.7);
+  left: 0;
+  width: 17px;
+  height: clamp(58px, 7vw, 86px);
+  border: 5px solid rgba(228, 234, 255, 0.74);
   border-right: 0;
-  border-radius: 12px 0 0 12px;
-  filter: drop-shadow(0 0 10px rgba(130, 150, 255, 0.25));
-  opacity: 0.76;
+  border-radius: 14px 0 0 14px;
+  background: rgba(255,255,255,0.04);
+  filter: drop-shadow(0 0 12px rgba(130, 150, 255, 0.28));
+  opacity: 0.82;
 }
 
 .keyboardPreview__case {
   position: relative;
-  width: calc(var(--keyboard-columns) * var(--unit) + 84px);
+  width: calc(var(--keyboard-columns) * var(--unit) + 68px);
   min-height: calc(var(--keyboard-rows) * var(--unit) + 58px);
-  padding: 24px 66px 24px 24px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 23px;
+  padding: 22px 50px 24px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 24px;
   background:
-    linear-gradient(145deg, rgba(255,255,255,0.13), transparent 22%),
-    linear-gradient(110deg, rgba(91,70,154,0.34), rgba(13,16,23,0.98) 44%, rgba(255,70,145,0.18)),
-    #090b10;
+    radial-gradient(circle at 18% 10%, rgba(113, 91, 196, 0.26), transparent 32%),
+    radial-gradient(circle at 92% 24%, rgba(215, 54, 129, 0.16), transparent 30%),
+    linear-gradient(145deg, rgba(255,255,255,0.13), transparent 20%),
+    linear-gradient(180deg, #242735 0%, #0b0e14 58%, #050609 100%);
   box-shadow:
-    0 34px 74px rgba(0, 0, 0, 0.46),
-    0 16px 30px rgba(0, 0, 0, 0.34),
+    0 42px 86px rgba(0, 0, 0, 0.5),
+    0 18px 34px rgba(0, 0, 0, 0.38),
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 -16px 28px rgba(0, 0, 0, 0.34);
-  transform: rotateX(5deg);
+    inset 0 -18px 30px rgba(0, 0, 0, 0.42);
+  transform: rotateX(4deg);
   transform-origin: center bottom;
+}
+
+.keyboardPreview__case::before {
+  content: "";
+  position: absolute;
+  inset: 13px 43px 14px 14px;
+  border-radius: 17px;
+  background:
+    linear-gradient(90deg, rgba(61, 236, 117, 0.18), rgba(25, 212, 231, 0.2), rgba(92, 103, 255, 0.2), rgba(221, 49, 147, 0.18)),
+    rgba(0,0,0,0.28);
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
 }
 
 .keyboardPreview__case::after {
   content: "";
   position: absolute;
-  inset: auto 18px 7px 18px;
-  height: 16px;
+  inset: auto 20px 5px 20px;
+  height: 18px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.38);
-  filter: blur(10px);
+  filter: blur(12px);
 }
 
 .keyboardPreview__glow {
@@ -83,18 +96,20 @@
   place-items: center;
   padding: 0;
   margin: calc(var(--gap) / 2);
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--key-glow) 32%, rgba(255,255,255,0.13));
+  border-radius: 8px;
   color: #f2f5ff;
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.15), rgba(255,255,255,0.03) 43%, rgba(0,0,0,0.2)),
-    #111521;
+    radial-gradient(circle at 36% 24%, rgba(255,255,255,0.16), transparent 28%),
+    linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04) 36%, rgba(0,0,0,0.24)),
+    linear-gradient(180deg, #1a1d2b 0%, #10131d 72%, #07090e 100%);
   box-shadow:
-    0 0 16px color-mix(in srgb, var(--key-glow) 52%, transparent),
-    0 7px 0 #06070b,
+    0 0 6px color-mix(in srgb, var(--key-glow) 70%, transparent),
+    0 0 18px color-mix(in srgb, var(--key-glow) 45%, transparent),
+    0 6px 0 #05060a,
     0 12px 20px rgba(0,0,0,0.38),
     inset 0 1px 0 rgba(255,255,255,0.16),
-    inset 0 -10px 18px rgba(0,0,0,0.36);
+    inset 0 -11px 18px rgba(0,0,0,0.42);
   transform: translateY(0);
   transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease, color 150ms ease;
 }
@@ -127,10 +142,10 @@
 
 .keyboardPreview__shine {
   position: absolute;
-  inset: 4px 5px auto 5px;
-  height: 35%;
-  border-radius: 7px 7px 4px 4px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.13), transparent);
+  inset: 5px 6px auto 6px;
+  height: 38%;
+  border-radius: 6px 6px 4px 4px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.15), rgba(255,255,255,0.03) 72%, transparent);
   pointer-events: none;
 }
 
@@ -163,8 +178,8 @@
 
 .keyboardPreview__knob {
   position: absolute;
-  top: 24px;
-  right: 18px;
+  top: 22px;
+  right: 14px;
   z-index: 2;
   width: clamp(40px, 4.2vw, 54px);
   height: clamp(40px, 4.2vw, 54px);
@@ -181,8 +196,8 @@
 }
 
 @media (max-width: 1100px) {
-  .keyboardPreview { --unit: clamp(25px, 5.2vw, 42px); }
-  .keyboardPreview__case { padding-right: 54px; }
+  .keyboardPreview { --unit: clamp(22px, 3.6vw, 35px); }
+  .keyboardPreview__case { padding-right: 48px; }
 }
 
 @media (max-width: 720px) {

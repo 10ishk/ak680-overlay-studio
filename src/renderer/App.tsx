@@ -46,7 +46,7 @@ import {
   WebviewCommandResult,
   WebviewCommandType
 } from "./officialDriverController";
-import { KeyboardPreview } from "./components/KeyboardPreview";
+import { KeyboardLightingMode, KeyboardPreview } from "./components/KeyboardPreview";
 import { ak680Layout } from "./data/ak680Layout";
 import "./styles.css";
 
@@ -385,25 +385,33 @@ function CommandTile({ title, meta, onClick }: { title: string; meta: string; on
 function LightingPage({ api, derived }: { api: OverlayApi; derived: ReturnType<typeof deriveLogState> }) {
   const [brightness, setBrightness] = useState(60);
   const [speed, setSpeed] = useState(50);
-  const [mode, setMode] = useState("RGB");
+  const [mode, setMode] = useState<KeyboardLightingMode>("rainbow");
+  const [accentColor, setAccentColor] = useState(colors[1]);
+  const selectMode = (nextMode: KeyboardLightingMode) => {
+    setMode(nextMode);
+    void api.runOverlayAction({ page: "Lighting", action: `Lighting mode ${nextMode}`, targetOfficialPath: officialPaths.lighting, commandType: "clickByText", text: nextMode === "solid" ? "Static" : nextMode === "off" ? "Off" : "RGB" });
+  };
   return (
     <div className="controlBoard pageFade">
       <PageIntro title="Lighting" note="Effects and color." path={officialPaths.lighting} api={api} />
-      <section className="controlHero lightingHero">
-        <div>
-          <span className="eyebrow">Live</span>
-          <h3>{derived.lastOverlayAction?.page === "Lighting" ? derived.lastOverlayAction.action : "Ready"}</h3>
+      <section className="lightingStudio">
+        <div className="lightingStudioTop">
+          <div><span className="eyebrow">Live Lighting</span><h3>{derived.lastOverlayAction?.page === "Lighting" ? derived.lastOverlayAction.action : "Rainbow preview"}</h3></div>
+          <div className="statusChips">
+            <StatusChip label="Route" value={derived.currentRoute} />
+            <StatusChip label="Result" value={derived.lastOverlayAction?.status ?? "Idle"} tone={derived.lastOverlayAction?.status === "success" ? "good" : derived.lastOverlayAction?.status === "failure" ? "bad" : "idle"} />
+          </div>
         </div>
-        <div className="statusChips">
-          <StatusChip label="Route" value={derived.currentRoute} />
-          <StatusChip label="Result" value={derived.lastOverlayAction?.status ?? "Idle"} tone={derived.lastOverlayAction?.status === "success" ? "good" : derived.lastOverlayAction?.status === "failure" ? "bad" : "idle"} />
+        <KeyboardPreview lightingMode={mode} accentColor={accentColor} />
+        <div className="lightingModeBar">
+          {(["rainbow", "solid", "off"] as KeyboardLightingMode[]).map((item) => <button className={mode === item ? "active" : ""} key={item} onClick={() => selectMode(item)}>{item}</button>)}
         </div>
       </section>
       <div className="presetGrid">{lightingEffects.slice(0, 8).map((effect) => <button key={effect} className="presetTile" onClick={async () => { await api.runOverlayAction({ page: "Lighting", action: "Wait for Lighting page", targetOfficialPath: officialPaths.lighting, commandType: "waitForText", text: "Lighting" }); await api.runOverlayAction({ page: "Lighting", action: `Lighting effect ${effect}`, targetOfficialPath: officialPaths.lighting, commandType: "clickByText", text: effect }); }}><span>Effect</span><strong>{effect}</strong></button>)}</div>
       <div className="controlDock">
         <ControlPanel title="Brightness" value={brightness} setValue={setBrightness} onApply={(value) => api.runOverlayAction({ page: "Lighting", action: `Lighting Brightness ${value}`, targetOfficialPath: officialPaths.lighting, commandType: "setRangeByNearbyLabel", text: "Lighting Brightness", nearText: "Brightness", value })} />
         <ControlPanel title="Speed" value={speed} setValue={setSpeed} onApply={(value) => api.runOverlayAction({ page: "Lighting", action: `Lighting Speed ${value}`, targetOfficialPath: officialPaths.lighting, commandType: "setRangeByNearbyLabel", text: "Lighting Speed", nearText: "Speed", value })} />
-        <section className="panel colorPanel"><span>Mode</span><div className="segmented">{["RGB", "Mono"].map((item) => <button className={mode === item ? "active" : ""} key={item} onClick={() => { setMode(item); void api.runOverlayAction({ page: "Lighting", action: `Color mode ${item}`, targetOfficialPath: officialPaths.lighting, commandType: "clickByText", text: item === "Mono" ? "Monochrome" : item }); }}>{item}</button>)}</div><div className="swatches">{colors.map((color) => <button key={color} style={{ background: color }} title={color} onClick={() => api.runOverlayAction({ page: "Lighting", action: `Color ${color}`, targetOfficialPath: officialPaths.lighting, commandType: "clickByText", text: color })} />)}</div></section>
+        <section className="panel colorPanel"><span>Color</span><strong>{mode === "solid" ? accentColor : mode}</strong><div className="swatches">{colors.map((color) => <button className={accentColor === color ? "active" : ""} key={color} style={{ background: color }} title={color} onClick={() => { setAccentColor(color); setMode("solid"); void api.runOverlayAction({ page: "Lighting", action: `Color ${color}`, targetOfficialPath: officialPaths.lighting, commandType: "clickByText", text: color }); }} />)}</div></section>
       </div>
     </div>
   );

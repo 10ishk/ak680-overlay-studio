@@ -11,7 +11,7 @@ export type Ak680Key = {
   type?: Ak680KeyType;
 };
 
-export const AK680_LAYOUT_WIDTH = 16;
+export const AK680_LAYOUT_WIDTH = 16.5;
 export const AK680_LAYOUT_HEIGHT = 5;
 
 export const ak680Layout: Ak680Key[] = [

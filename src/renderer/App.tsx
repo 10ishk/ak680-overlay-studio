@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { Component, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Activity,
@@ -95,6 +95,44 @@ const themes = ["Carbon Orange", "Obsidian", "Neon Blue", "Violet", "Frost", "Ma
 const markerExamples = ["SOCD baseline", "SOCD ON", "SOCD OFF", "RT 1.2mm", "Lighting Snowfall", "Macro Save", "Before change", "After change"];
 const lightingEffects = ["Static Bright", "Single Point On", "Single Point Off", "Starry Sky", "Snowfall", "Floral Competition", "Dynamic Breath", "Spectrum Cycle", "Color Fountain", "Ripples Spread", "Endless Flow", "Back and Forth", "Custom"];
 const colors = ["#ff7a1a", "#39a7ff", "#a78bfa", "#9bd67b", "#ffffff", "#ff4d6d"];
+
+console.log("AK680 renderer booted");
+
+type ErrorBoundaryState = {
+  error?: Error;
+};
+
+class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
+  state: ErrorBoundaryState = {};
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { error };
+  }
+
+  componentDidCatch(error: Error): void {
+    console.error("AK680 renderer failed", error);
+  }
+
+  render() {
+    if (this.state.error) {
+      return <RendererFailure error={this.state.error} />;
+    }
+    return this.props.children;
+  }
+}
+
+function RendererFailure({ error }: { error: Error }) {
+  return (
+    <div className="rendererFailure">
+      <section className="panel">
+        <span>AK680 Overlay Studio {bridge.metadata.version}</span>
+        <strong>Renderer failed to load</strong>
+        <p>{error.message}</p>
+        <p>Open DevTools from the Electron View menu for the full console trace.</p>
+      </section>
+    </div>
+  );
+}
 
 function App() {
   const [page, setPage] = useState<Page>("Dashboard");
@@ -384,6 +422,8 @@ function AdapterInspector({ api }: { api: OverlayApi }) {
 
 const OfficialWebviewHost = React.forwardRef<ElectronWebview | null, { mode: WebviewMode; targetUrl: string; addLogEvent: (payload: unknown) => void; updateOfficialUrl: (url: string, type?: string) => void }>(function OfficialWebviewHost(props, ref) {
   const localRef = useRef<ElectronWebview | null>(null);
+  const [domReady, setDomReady] = useState(false);
+  const [webviewError, setWebviewError] = useState<string | undefined>();
   useEffect(() => {
     if (typeof ref === "function") ref(localRef.current);
     else if (ref) ref.current = localRef.current;
@@ -391,27 +431,39 @@ const OfficialWebviewHost = React.forwardRef<ElectronWebview | null, { mode: Web
   useEffect(() => {
     const webview = localRef.current;
     if (!webview) return;
+    const ready = () => {
+      setDomReady(true);
+      setWebviewError(undefined);
+    };
     const ipc = (event: Event) => {
       const detail = event as Event & { channel?: string; args?: unknown[] };
       if (detail.channel === "ak680-log-event") props.addLogEvent(detail.args?.[0]);
     };
-    const nav = (event: Event) => props.updateOfficialUrl((event.currentTarget as ElectronWebview).getURL?.() ?? bridge.metadata.officialDriverUrl, event.type);
+    const nav = (event: Event) => props.updateOfficialUrl(safeWebviewUrl(event.currentTarget as ElectronWebview), event.type);
+    const fail = (event: Event) => {
+      const detail = event as Event & { errorDescription?: string; validatedURL?: string };
+      setWebviewError(detail.errorDescription ?? "Official webview failed to load");
+    };
+    webview.addEventListener("dom-ready", ready);
     webview.addEventListener("ipc-message", ipc);
     webview.addEventListener("did-navigate", nav);
     webview.addEventListener("did-navigate-in-page", nav);
     webview.addEventListener("page-title-updated", nav);
+    webview.addEventListener("did-fail-load", fail);
     return () => {
+      webview.removeEventListener("dom-ready", ready);
       webview.removeEventListener("ipc-message", ipc);
       webview.removeEventListener("did-navigate", nav);
       webview.removeEventListener("did-navigate-in-page", nav);
       webview.removeEventListener("page-title-updated", nav);
+      webview.removeEventListener("did-fail-load", fail);
     };
   }, [props]);
   useEffect(() => {
     const webview = localRef.current;
-    if (webview?.loadURL && webview.getURL?.() !== props.targetUrl) void webview.loadURL(props.targetUrl);
-  }, [props.targetUrl]);
-  return <div className={`officialHost ${props.mode.toLowerCase()}`}><webview ref={(node) => { localRef.current = node as ElectronWebview | null; }} src={props.targetUrl} preload={bridge.metadata.webviewPreloadPath} allow="hid" partition="persist:ajazz-official" /></div>;
+    if (domReady && webview?.loadURL && safeWebviewUrl(webview) !== props.targetUrl) void webview.loadURL(props.targetUrl).catch((error) => setWebviewError(String(error)));
+  }, [domReady, props.targetUrl]);
+  return <div className={`officialHost ${props.mode.toLowerCase()}`}><webview ref={(node) => { localRef.current = node as ElectronWebview | null; }} src={props.targetUrl} preload={bridge.metadata.webviewPreloadPath} allow="hid" partition="persist:ajazz-official" />{webviewError && <div className="webviewError"><strong>Official driver view failed</strong><span>{webviewError}</span></div>}</div>;
 });
 
 function LogsPage(props: { events: OverlayLogEvent[]; actions: OverlayAction[]; marker: string; setMarker: (marker: string) => void; addMarker: (label?: string) => void; exportLogs: () => void; clearLogs: () => void; derived: ReturnType<typeof deriveLogState> }) {
@@ -484,4 +536,17 @@ function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+function safeWebviewUrl(webview: ElectronWebview | null): string {
+  try {
+    return webview?.getURL?.() || bridge.metadata.officialDriverUrl;
+  } catch {
+    return bridge.metadata.officialDriverUrl;
+  }
+}
+
+const root = document.getElementById("root");
+if (!root) {
+  document.body.innerHTML = "<div style=\"color:white;padding:24px;font-family:sans-serif\">Renderer failed to load: missing #root</div>";
+} else {
+  createRoot(root).render(<ErrorBoundary><App /></ErrorBoundary>);
+}

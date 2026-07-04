@@ -53,7 +53,7 @@ function createWindow(): BrowserWindow {
     title: "AK680 Overlay Studio",
     backgroundColor: "#08090b",
     webPreferences: {
-      preload: path.join(__dirname, "../preload/preload.js"),
+      preload: path.join(__dirname, "../preload/preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
@@ -63,10 +63,20 @@ function createWindow(): BrowserWindow {
 
   const devServer = process.env.VITE_DEV_SERVER_URL;
   if (devServer) {
+    console.log(`[ak680-main] Loading renderer URL: ${devServer}`);
     void win.loadURL(devServer);
   } else {
-    void win.loadFile(path.join(__dirname, "../renderer/index.html"));
+    const rendererPath = path.join(__dirname, "../renderer/index.html");
+    console.log(`[ak680-main] Loading renderer file: ${rendererPath}`);
+    void win.loadFile(rendererPath);
   }
+
+  win.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
+    console.error(`[ak680-main] Renderer load failed`, { errorCode, errorDescription, validatedURL });
+  });
+  win.webContents.on("render-process-gone", (_event, details) => {
+    console.error("[ak680-main] Renderer process gone", details);
+  });
 
   return win;
 }

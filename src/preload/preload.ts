@@ -1,18 +1,19 @@
 import { contextBridge, ipcRenderer } from "electron";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const metadata = {
   name: "AK680 Overlay Studio",
   version: "0.1.0",
   officialDriverUrl: "https://ajazz.driveall.cn/",
-  webviewPreloadPath: path.join(__dirname, "webviewLogger.js"),
+  webviewPreloadPath: path.join(__dirname, "webviewLogger.cjs"),
   targetDevice: "AJAZZ AK680 V2",
   vid: 3141,
   pid: 32956
 };
+
+if (process.env.NODE_ENV !== "production") {
+  console.log("AK680 preload loaded");
+}
 
 contextBridge.exposeInMainWorld("ak680", {
   metadata,

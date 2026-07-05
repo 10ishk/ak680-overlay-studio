@@ -332,11 +332,11 @@ function App() {
   const api: OverlayApi = useMemo(() => ({ openOfficialPath, runOverlayAction }), [openOfficialPath, runOverlayAction]);
   const actionsFor = useCallback((targetPage: Page) => logState.actions.filter((action) => action.page === targetPage).slice(0, 4), [logState.actions]);
   const content = page === "Dashboard"
-    ? <Dashboard api={api} derived={derived} startSession={startSession} stopSession={stopSession} session={logState.session} />
+    ? <Dashboard api={api} derived={derived} actions={actionsFor("Dashboard")} startSession={startSession} stopSession={stopSession} session={logState.session} />
     : page === "Lighting"
-      ? <LightingPage api={api} derived={derived} />
+      ? <LightingPage api={api} derived={derived} actions={actionsFor("Lighting")} />
       : page === "Performance"
-        ? <PerformancePage api={api} derived={derived} />
+        ? <PerformancePage api={api} derived={derived} actions={actionsFor("Performance")} />
         : page === "Advanced Keys"
           ? <AdvancedKeysPage api={api} actions={actionsFor("Advanced Keys")} />
           : page === "SOCD"
@@ -381,7 +381,7 @@ function App() {
   );
 }
 
-function Dashboard(props: { api: OverlayApi; derived: ReturnType<typeof deriveLogState>; session: { active: boolean }; startSession: () => void; stopSession: () => void }) {
+function Dashboard(props: { api: OverlayApi; derived: ReturnType<typeof deriveLogState>; actions: OverlayAction[]; session: { active: boolean }; startSession: () => void; stopSession: () => void }) {
   return (
     <div className="dashboard pageFade">
       <section className="keyboardShowcase">
@@ -395,6 +395,7 @@ function Dashboard(props: { api: OverlayApi; derived: ReturnType<typeof deriveLo
           <StatusChip label="Last" value={props.derived.lastOverlayAction?.status ?? "Idle"} tone={props.derived.lastOverlayAction?.status === "success" ? "good" : props.derived.lastOverlayAction?.status === "failure" ? "bad" : "idle"} />
           <StatusChip label="Events" value={`${props.derived.eventCount}`} />
         </div>
+        <ActionSyncStrip action={props.actions[0]} idleLabel="Ready to connect" />
       </section>
       <div className="commandGrid">
         <CommandTile icon={Brush} title="Lighting" meta="RGB effects" onClick={() => props.api.openOfficialPath(officialPaths.lighting)} />
@@ -426,6 +427,21 @@ function FlowStatus({ actions }: { actions: OverlayAction[] }) {
   );
 }
 
+function ActionSyncStrip({ action, idleLabel = "Ready" }: { action?: OverlayAction; idleLabel?: string }) {
+  if (!action) {
+    return <div className="syncStrip idle"><span className="actionBadge ready"><CheckCircle2 size={14} />ready</span><div><strong>{idleLabel}</strong><span>No sync requested.</span></div></div>;
+  }
+  return (
+    <div className={`syncStrip ${action.status}`}>
+      <ActionStatusBadge status={action.status} />
+      <div>
+        <strong>{action.action}</strong>
+        <span>{action.message}</span>
+      </div>
+    </div>
+  );
+}
+
 function ok(result: WebviewCommandResult): boolean {
   return result.success;
 }
@@ -434,7 +450,7 @@ function CommandTile({ icon: Icon, title, meta, onClick }: { icon: React.Element
   return <button className="commandTile" onClick={onClick}><Icon size={20} /><span>{meta}</span><strong>{title}</strong></button>;
 }
 
-function LightingPage({ api, derived }: { api: OverlayApi; derived: ReturnType<typeof deriveLogState> }) {
+function LightingPage({ api, derived, actions }: { api: OverlayApi; derived: ReturnType<typeof deriveLogState>; actions: OverlayAction[] }) {
   const [brightness, setBrightness] = useState(60);
   const [speed, setSpeed] = useState(50);
   const [mode, setMode] = useState<KeyboardLightingMode>("rainbow");
@@ -458,6 +474,7 @@ function LightingPage({ api, derived }: { api: OverlayApi; derived: ReturnType<t
         <div className="lightingModeBar">
           {(["rainbow", "solid", "off"] as KeyboardLightingMode[]).map((item) => <button className={mode === item ? "active" : ""} key={item} onClick={() => selectMode(item)}>{item}</button>)}
         </div>
+        <ActionSyncStrip action={actions[0]} idleLabel="Lighting ready" />
       </section>
       <div className="presetGrid">{lightingEffects.slice(0, 8).map((effect) => <button key={effect} className="presetTile" onClick={async () => { const ready = await api.runOverlayAction({ page: "Lighting", action: "Wait for Lighting page", targetOfficialPath: officialPaths.lighting, commandType: "waitForText", text: "Lighting" }); if (!ok(ready)) return; await api.runOverlayAction({ page: "Lighting", action: `Lighting effect ${effect}`, targetOfficialPath: officialPaths.lighting, commandType: "clickByText", text: effect }); }}><span>Effect</span><strong>{effect}</strong></button>)}</div>
       <div className="controlDock">
@@ -469,7 +486,7 @@ function LightingPage({ api, derived }: { api: OverlayApi; derived: ReturnType<t
   );
 }
 
-function PerformancePage({ api, derived }: { api: OverlayApi; derived: ReturnType<typeof deriveLogState> }) {
+function PerformancePage({ api, derived, actions }: { api: OverlayApi; derived: ReturnType<typeof deriveLogState>; actions: OverlayAction[] }) {
   const [trigger, setTrigger] = useState(12);
   const [deadTop, setDeadTop] = useState(5);
   const [deadBottom, setDeadBottom] = useState(5);
@@ -479,6 +496,7 @@ function PerformancePage({ api, derived }: { api: OverlayApi; derived: ReturnTyp
       <section className="controlHero performanceHero">
         <div><span className="eyebrow">Tuning</span><h3>{derived.lastOverlayAction?.page === "Performance" ? derived.lastOverlayAction.action : "Balanced"}</h3></div>
         <div className="tabs">{["Normal", "Advanced", "Recalibrate"].map((tab) => <button key={tab} onClick={() => api.runOverlayAction({ page: "Performance", action: `Open ${tab}`, targetOfficialPath: officialPaths.performance, commandType: "clickByText", text: tab === "Advanced" ? "Advanced Settings" : tab })}>{tab}</button>)}</div>
+        <ActionSyncStrip action={actions[0]} idleLabel="Performance ready" />
       </section>
       <div className="presetGrid">{["Custom", "Office Mode", "Beginner Mode", "Game Mode"].map((preset) => <button className="presetTile" key={preset} onClick={async () => { const ready = await api.runOverlayAction({ page: "Performance", action: "Wait for Performance page", targetOfficialPath: officialPaths.performance, commandType: "waitForText", text: "Performance" }); if (!ok(ready)) return; await api.runOverlayAction({ page: "Performance", action: `Preset ${preset}`, targetOfficialPath: officialPaths.performance, commandType: "clickByText", text: preset }); }}><span>Preset</span><strong>{preset.replace(" Mode", "")}</strong></button>)}</div>
       <div className="controlDock">

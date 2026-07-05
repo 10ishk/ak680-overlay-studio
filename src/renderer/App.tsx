@@ -588,13 +588,15 @@ function KeymapPage({ api, actions }: { api: OverlayApi; actions: OverlayAction[
           <KeyboardPreview selectedKey={selectedKeyId} onKeySelect={(keyId) => setSelectedKeyId(keyId)} lightingMode="rainbow" accentColor="#7f8cff" />
         </section>
         <section className="panel assignmentPanel">
-          <span>Assignment</span>
-          <strong>{selectedKey.label} {"->"} {assignment}</strong>
-          <p>{selectedKey.type ?? "normal"} key selected</p>
-          <select value={assignment} onChange={(event) => setAssignment(event.target.value)}>{keyAssignments.map((item) => <option key={item}>{item}</option>)}</select>
+          <div className="assignmentHero">
+            <span>Mapping</span>
+            <div className="mappingPair"><strong>{selectedKey.label}</strong><span>{"->"}</span><strong>{assignment}</strong></div>
+            <small>{selectedKey.type ?? "normal"} key</small>
+          </div>
+          <label className="fieldLabel">Assign<select value={assignment} onChange={(event) => setAssignment(event.target.value)}>{keyAssignments.map((item) => <option key={item}>{item}</option>)}</select></label>
           <div className="assignmentGrid">{keyAssignments.slice(0, 8).map((item) => <button className={assignment === item ? "active" : ""} key={item} onClick={() => setAssignment(item)}>{item}</button>)}</div>
           <div className="actions"><button className="primary" onClick={applyAssignment}>Apply Mapping</button><button onClick={() => api.openOfficialPath(officialPaths.keymap, true)}>Official View</button></div>
-          <FlowStatus actions={actions} />
+          <ActionSyncStrip action={actions[0]} idleLabel="Keymap ready" />
         </section>
       </div>
     </div>

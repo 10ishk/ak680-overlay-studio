@@ -518,9 +518,13 @@ function AdvancedKeysPage({ api, actions }: { api: OverlayApi; actions: OverlayA
       <PageIntro title="Advanced Keys" note="RS, DKS, MT, TGL." path={officialPaths.advancedKeys} api={api} />
       <div className="advancedWorkspace">
         <section className="panel advancedModulePanel">
-          <span>Module</span>
-          <strong>{module}</strong>
+          <div className="modeHero">
+            <span>Module</span>
+            <strong>{module}</strong>
+            <small>Official advanced keys</small>
+          </div>
           <div className="moduleGrid">{advancedModules.map((item) => <button className={module === item ? "active" : ""} key={item} onClick={() => { setModule(item); void openModule(item); }}>{item}</button>)}</div>
+          <ActionSyncStrip action={actions[0]} idleLabel="Advanced ready" />
         </section>
         <section className="advancedActions">
           <ControlPanel title="Trigger Point" value={actuation} setValue={setActuation} onApply={async (value) => { const opened = await openModule(); if (!ok(opened)) return; await api.runOverlayAction({ page: "Advanced Keys", action: `${module} Trigger ${value}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "setRangeByNearbyLabel", text: module, nearText: "Trigger", value }); }} />
@@ -528,7 +532,6 @@ function AdvancedKeysPage({ api, actions }: { api: OverlayApi; actions: OverlayA
           <button className="panel actionPanel" onClick={async () => { const opened = await openModule(); if (!ok(opened)) return; await api.runOverlayAction({ page: "Advanced Keys", action: `Save ${module}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: "Save", nearText: module === "RS / Snappy" ? "RS" : module }); }}><span>Commit</span><strong>Save</strong><p>Apply in driver.</p></button>
         </section>
       </div>
-      <FlowStatus actions={actions} />
     </div>
   );
 }
@@ -549,9 +552,13 @@ function SocdPage({ api, actions }: { api: OverlayApi; actions: OverlayAction[] 
       <PageIntro title="SOCD" note="Mode selection." path={officialPaths.advancedKeys} api={api} />
       <div className="socdWorkspace">
         <section className="panel socdModePanel">
-          <span>Mode</span>
-          <strong>{mode}</strong>
+          <div className="modeHero">
+            <span>Mode</span>
+            <strong>{mode}</strong>
+            <small>SOCD behavior</small>
+          </div>
           <div className="modeList">{socdModes.map((item) => <button className={mode === item ? "active" : ""} key={item} onClick={() => setMode(item)}>{item}</button>)}</div>
+          <ActionSyncStrip action={actions[0]} idleLabel="SOCD ready" />
         </section>
         <section className="panel socdApplyPanel">
           <span>Apply</span>
@@ -560,7 +567,6 @@ function SocdPage({ api, actions }: { api: OverlayApi; actions: OverlayAction[] 
           <div className="actions"><button className="primary" onClick={applyMode}>Apply Mode</button><button onClick={() => api.openOfficialPath(officialPaths.advancedKeys, true)}>Official View</button></div>
         </section>
       </div>
-      <FlowStatus actions={actions} />
     </div>
   );
 }

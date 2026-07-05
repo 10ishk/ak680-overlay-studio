@@ -393,6 +393,10 @@ function FlowStatus({ actions }: { actions: OverlayAction[] }) {
   );
 }
 
+function ok(result: WebviewCommandResult): boolean {
+  return result.success;
+}
+
 function CommandTile({ title, meta, onClick }: { title: string; meta: string; onClick: () => void }) {
   return <button className="commandTile" onClick={onClick}><span>{meta}</span><strong>{title}</strong></button>;
 }
@@ -422,7 +426,7 @@ function LightingPage({ api, derived }: { api: OverlayApi; derived: ReturnType<t
           {(["rainbow", "solid", "off"] as KeyboardLightingMode[]).map((item) => <button className={mode === item ? "active" : ""} key={item} onClick={() => selectMode(item)}>{item}</button>)}
         </div>
       </section>
-      <div className="presetGrid">{lightingEffects.slice(0, 8).map((effect) => <button key={effect} className="presetTile" onClick={async () => { await api.runOverlayAction({ page: "Lighting", action: "Wait for Lighting page", targetOfficialPath: officialPaths.lighting, commandType: "waitForText", text: "Lighting" }); await api.runOverlayAction({ page: "Lighting", action: `Lighting effect ${effect}`, targetOfficialPath: officialPaths.lighting, commandType: "clickByText", text: effect }); }}><span>Effect</span><strong>{effect}</strong></button>)}</div>
+      <div className="presetGrid">{lightingEffects.slice(0, 8).map((effect) => <button key={effect} className="presetTile" onClick={async () => { const ready = await api.runOverlayAction({ page: "Lighting", action: "Wait for Lighting page", targetOfficialPath: officialPaths.lighting, commandType: "waitForText", text: "Lighting" }); if (!ok(ready)) return; await api.runOverlayAction({ page: "Lighting", action: `Lighting effect ${effect}`, targetOfficialPath: officialPaths.lighting, commandType: "clickByText", text: effect }); }}><span>Effect</span><strong>{effect}</strong></button>)}</div>
       <div className="controlDock">
         <ControlPanel title="Brightness" value={brightness} setValue={setBrightness} onApply={(value) => api.runOverlayAction({ page: "Lighting", action: `Lighting Brightness ${value}`, targetOfficialPath: officialPaths.lighting, commandType: "setRangeByNearbyLabel", text: "Lighting Brightness", nearText: "Brightness", value })} />
         <ControlPanel title="Speed" value={speed} setValue={setSpeed} onApply={(value) => api.runOverlayAction({ page: "Lighting", action: `Lighting Speed ${value}`, targetOfficialPath: officialPaths.lighting, commandType: "setRangeByNearbyLabel", text: "Lighting Speed", nearText: "Speed", value })} />
@@ -443,7 +447,7 @@ function PerformancePage({ api, derived }: { api: OverlayApi; derived: ReturnTyp
         <div><span className="eyebrow">Tuning</span><h3>{derived.lastOverlayAction?.page === "Performance" ? derived.lastOverlayAction.action : "Balanced"}</h3></div>
         <div className="tabs">{["Normal", "Advanced", "Recalibrate"].map((tab) => <button key={tab} onClick={() => api.runOverlayAction({ page: "Performance", action: `Open ${tab}`, targetOfficialPath: officialPaths.performance, commandType: "clickByText", text: tab === "Advanced" ? "Advanced Settings" : tab })}>{tab}</button>)}</div>
       </section>
-      <div className="presetGrid">{["Custom", "Office Mode", "Beginner Mode", "Game Mode"].map((preset) => <button className="presetTile" key={preset} onClick={async () => { await api.runOverlayAction({ page: "Performance", action: "Wait for Performance page", targetOfficialPath: officialPaths.performance, commandType: "waitForText", text: "Performance" }); await api.runOverlayAction({ page: "Performance", action: `Preset ${preset}`, targetOfficialPath: officialPaths.performance, commandType: "clickByText", text: preset }); }}><span>Preset</span><strong>{preset.replace(" Mode", "")}</strong></button>)}</div>
+      <div className="presetGrid">{["Custom", "Office Mode", "Beginner Mode", "Game Mode"].map((preset) => <button className="presetTile" key={preset} onClick={async () => { const ready = await api.runOverlayAction({ page: "Performance", action: "Wait for Performance page", targetOfficialPath: officialPaths.performance, commandType: "waitForText", text: "Performance" }); if (!ok(ready)) return; await api.runOverlayAction({ page: "Performance", action: `Preset ${preset}`, targetOfficialPath: officialPaths.performance, commandType: "clickByText", text: preset }); }}><span>Preset</span><strong>{preset.replace(" Mode", "")}</strong></button>)}</div>
       <div className="controlDock">
         <ControlPanel title="Trigger Distance" value={trigger} setValue={setTrigger} onApply={(value) => api.runOverlayAction({ page: "Performance", action: `Trigger Distance ${value}`, targetOfficialPath: officialPaths.performance, commandType: "setRangeByNearbyLabel", text: "Trigger Distance", nearText: "Trigger", value })} />
         <section className="panel fastTrigger"><span>Fast Trigger</span><strong>{derived.lastOverlayAction?.action === "Fast Trigger" ? "Requested" : "Ready"}</strong><button onClick={() => api.runOverlayAction({ page: "Performance", action: "Fast Trigger", targetOfficialPath: officialPaths.performance, commandType: "setToggleByLabel", text: "Fast Trigger" })}>Toggle</button></section>
@@ -468,9 +472,9 @@ function AdvancedKeysPage({ api, actions }: { api: OverlayApi; actions: OverlayA
           <div className="moduleGrid">{advancedModules.map((item) => <button className={module === item ? "active" : ""} key={item} onClick={() => { setModule(item); void openModule(item); }}>{item}</button>)}</div>
         </section>
         <section className="advancedActions">
-          <ControlPanel title="Trigger Point" value={actuation} setValue={setActuation} onApply={async (value) => { await openModule(); await api.runOverlayAction({ page: "Advanced Keys", action: `${module} Trigger ${value}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "setRangeByNearbyLabel", text: module, nearText: "Trigger", value }); }} />
-          <button className="panel actionPanel" onClick={async () => { await openModule(); await api.runOverlayAction({ page: "Advanced Keys", action: `Enable ${module}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "setToggleByLabel", text: "Enable", value: true }); }}><span>Toggle</span><strong>Enable</strong><p>Turns on the selected module if the official toggle is visible.</p></button>
-          <button className="panel actionPanel" onClick={async () => { await openModule(); await api.runOverlayAction({ page: "Advanced Keys", action: `Save ${module}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: "Save", nearText: module === "RS / Snappy" ? "RS" : module }); }}><span>Commit</span><strong>Save</strong><p>Uses the official driver save action.</p></button>
+          <ControlPanel title="Trigger Point" value={actuation} setValue={setActuation} onApply={async (value) => { const opened = await openModule(); if (!ok(opened)) return; await api.runOverlayAction({ page: "Advanced Keys", action: `${module} Trigger ${value}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "setRangeByNearbyLabel", text: module, nearText: "Trigger", value }); }} />
+          <button className="panel actionPanel" onClick={async () => { const opened = await openModule(); if (!ok(opened)) return; await api.runOverlayAction({ page: "Advanced Keys", action: `Enable ${module}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "setToggleByLabel", text: "Enable", value: true }); }}><span>Toggle</span><strong>Enable</strong><p>Turns on the selected module if the official toggle is visible.</p></button>
+          <button className="panel actionPanel" onClick={async () => { const opened = await openModule(); if (!ok(opened)) return; await api.runOverlayAction({ page: "Advanced Keys", action: `Save ${module}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: "Save", nearText: module === "RS / Snappy" ? "RS" : module }); }}><span>Commit</span><strong>Save</strong><p>Uses the official driver save action.</p></button>
         </section>
       </div>
       <FlowStatus actions={actions} />
@@ -481,7 +485,8 @@ function AdvancedKeysPage({ api, actions }: { api: OverlayApi; actions: OverlayA
 function SocdPage({ api, actions }: { api: OverlayApi; actions: OverlayAction[] }) {
   const [mode, setMode] = useState(socdModes[0]);
   const applyMode = async () => {
-    await api.runOverlayAction({ page: "SOCD", action: "Open SOCD panel", targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: "SOCD" });
+    const opened = await api.runOverlayAction({ page: "SOCD", action: "Open SOCD panel", targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: "SOCD" });
+    if (!ok(opened)) return;
     if (mode === "Off") {
       await api.runOverlayAction({ page: "SOCD", action: "Disable SOCD", targetOfficialPath: officialPaths.advancedKeys, commandType: "setToggleByLabel", text: "SOCD", value: false });
       return;
@@ -514,7 +519,8 @@ function KeymapPage({ api, actions }: { api: OverlayApi; actions: OverlayAction[
   const [assignment, setAssignment] = useState("Backspace");
   const selectedKey = ak680Layout.find((key) => key.id === selectedKeyId) ?? ak680Layout[0];
   const applyAssignment = async () => {
-    await api.runOverlayAction({ page: "Keymap", action: `Select ${selectedKey.label}`, targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: selectedKey.label });
+    const selected = await api.runOverlayAction({ page: "Keymap", action: `Select ${selectedKey.label}`, targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: selectedKey.label });
+    if (!ok(selected)) return;
     const inputResult = await api.runOverlayAction({ page: "Keymap", action: `Search assignment ${assignment}`, targetOfficialPath: officialPaths.keymap, commandType: "setInputValue", text: "Key", value: assignment });
     if (!inputResult.success) {
       await api.runOverlayAction({ page: "Keymap", action: `Find assignment ${assignment}`, targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: assignment, nearText: "Key" });
@@ -548,22 +554,26 @@ function MacrosPage({ api, actions }: { api: OverlayApi; actions: OverlayAction[
   const [slot, setSlot] = useState(macroSlots[0]);
   const [target, setTarget] = useState(macroTargets[0]);
   const createMacro = async () => {
-    await api.runOverlayAction({ page: "Macros", action: "Open Macro Manager", targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: "Macro" });
+    const opened = await api.runOverlayAction({ page: "Macros", action: "Open Macro Manager", targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: "Macro" });
+    if (!ok(opened)) return;
     const nameResult = await api.runOverlayAction({ page: "Macros", action: `Name macro ${slot}`, targetOfficialPath: officialPaths.macros, commandType: "setInputValue", text: "Name", value: slot });
     if (!nameResult.success) {
       await api.runOverlayAction({ page: "Macros", action: "New Macro", targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: "New", nearText: "Macro" });
     }
   };
   const recordMacro = async () => {
-    await api.runOverlayAction({ page: "Macros", action: `Select macro ${slot}`, targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: slot });
+    const selected = await api.runOverlayAction({ page: "Macros", action: `Select macro ${slot}`, targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: slot });
+    if (!ok(selected)) return;
     await api.runOverlayAction({ page: "Macros", action: "Start recording", targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: "Record", nearText: slot });
   };
   const saveMacro = async () => {
-    await api.runOverlayAction({ page: "Macros", action: "Stop recording", targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: "Stop", nearText: slot });
+    const stopped = await api.runOverlayAction({ page: "Macros", action: "Stop recording", targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: "Stop", nearText: slot });
+    if (!ok(stopped)) return;
     await api.runOverlayAction({ page: "Macros", action: "Save macro", targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: "Save", nearText: slot });
   };
   const assignMacro = async () => {
-    await api.runOverlayAction({ page: "Macros", action: `Select macro ${slot}`, targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: slot });
+    const selected = await api.runOverlayAction({ page: "Macros", action: `Select macro ${slot}`, targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: slot });
+    if (!ok(selected)) return;
     await api.runOverlayAction({ page: "Macros", action: `Assign macro to ${target}`, targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: target, nearText: slot });
   };
   return (

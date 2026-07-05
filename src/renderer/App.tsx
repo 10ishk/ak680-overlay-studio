@@ -674,16 +674,23 @@ function SettingsPage(props: { theme: string; setTheme: (theme: string) => void;
       <PageIntro title="Settings" note="Device and app." path={officialPaths.settings} api={props.api} />
       <div className="settingsWorkspace">
         <section className="panel deviceSettingsPanel">
-          <span>Device</span>
-          <strong>{returnRate}</strong>
+          <div className="settingsHero">
+            <span>Device</span>
+            <strong>{returnRate}</strong>
+            <small>{stability ? "Stability on" : "Stability off"} / {calibration ? "Adaptive on" : "Adaptive off"}</small>
+          </div>
           <div className="rateGrid">{returnRates.map((item) => <button className={returnRate === item ? "active" : ""} key={item} onClick={() => setReturnRate(item)}>{item}</button>)}</div>
           <label className="toggleRow"><input type="checkbox" checked={stability} onChange={(event) => setStability(event.target.checked)} />Stability Mode</label>
           <label className="toggleRow"><input type="checkbox" checked={calibration} onChange={(event) => setCalibration(event.target.checked)} />Adaptive Calibration</label>
           <button className="primary" onClick={applyDeviceSettings}>Apply Device Settings</button>
+          <ActionSyncStrip action={props.actions[0]} idleLabel="Settings ready" />
         </section>
         <section className="panel appSettingsPanel">
-          <span>App</span>
-          <strong>Theme / diagnostics</strong>
+          <div className="settingsHero subtle">
+            <span>App</span>
+            <strong>Theme / diagnostics</strong>
+            <small>{props.theme}</small>
+          </div>
           <label className="fieldLabel">Theme<select value={props.theme} onChange={(event) => props.setTheme(event.target.value)}>{themes.map((item) => <option key={item}>{item}</option>)}</select></label>
           <div className="actions"><button onClick={props.exportLogs}>Export Diagnostics</button><button onClick={props.clearLogs}>Clear Activity</button></div>
           <button onClick={() => props.api.openOfficialPath(officialPaths.settings, true)}>Open Official Settings</button>
@@ -695,7 +702,6 @@ function SettingsPage(props: { theme: string; setTheme: (theme: string) => void;
           <button onClick={() => props.api.runOverlayAction({ page: "Settings", action: "Open Reset Settings", targetOfficialPath: officialPaths.settings, commandType: "clickByText", text: "Reset" })}>Open Reset Area</button>
         </section>
       </div>
-      <FlowStatus actions={props.actions} />
       <AdapterInspector api={props.api} />
     </div>
   );

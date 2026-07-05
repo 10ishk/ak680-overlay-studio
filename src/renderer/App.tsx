@@ -397,12 +397,12 @@ function Dashboard(props: { api: OverlayApi; derived: ReturnType<typeof deriveLo
         </div>
       </section>
       <div className="commandGrid">
-        <CommandTile title="Lighting" meta="Effects, color, speed" onClick={() => props.api.openOfficialPath(officialPaths.lighting)} />
-        <CommandTile title="Performance" meta="Trigger and response" onClick={() => props.api.openOfficialPath(officialPaths.performance)} />
-        <CommandTile title="Keymap" meta="Keys and layers" onClick={() => props.api.openOfficialPath(officialPaths.keymap)} />
-        <CommandTile title="Advanced" meta="RS, DKS, SOCD" onClick={() => props.api.openOfficialPath(officialPaths.advancedKeys)} />
-        <CommandTile title="Macros" meta="Record and assign" onClick={() => props.api.openOfficialPath(officialPaths.macros)} />
-        <CommandTile title={props.session.active ? "Stop Capture" : "Capture"} meta={`${props.derived.eventCount} events`} onClick={props.session.active ? props.stopSession : props.startSession} />
+        <CommandTile icon={Brush} title="Lighting" meta="RGB effects" onClick={() => props.api.openOfficialPath(officialPaths.lighting)} />
+        <CommandTile icon={Gauge} title="Performance" meta="Trigger feel" onClick={() => props.api.openOfficialPath(officialPaths.performance)} />
+        <CommandTile icon={Keyboard} title="Keymap" meta="Remap keys" onClick={() => props.api.openOfficialPath(officialPaths.keymap)} />
+        <CommandTile icon={SlidersHorizontal} title="Advanced" meta="RS / DKS / SOCD" onClick={() => props.api.openOfficialPath(officialPaths.advancedKeys)} />
+        <CommandTile icon={ListTodo} title="Macros" meta="Combos" onClick={() => props.api.openOfficialPath(officialPaths.macros)} />
+        <CommandTile icon={props.session.active ? XCircle : Activity} title={props.session.active ? "Stop Capture" : "Capture"} meta={`${props.derived.eventCount} events`} onClick={props.session.active ? props.stopSession : props.startSession} />
       </div>
     </div>
   );
@@ -414,7 +414,7 @@ function StatusChip({ label, value, tone = "idle" }: { label: string; value: str
 
 function FlowStatus({ actions }: { actions: OverlayAction[] }) {
   const latest = actions[0];
-  if (!latest) return <div className="flowStatus idle"><span>Ready</span><strong>No action sent yet</strong><p>Prepare the official page, then apply a setting.</p></div>;
+  if (!latest) return <div className="flowStatus idle"><span>Ready</span><strong>No action yet</strong><p>Pick a control to sync.</p></div>;
   const details = latest.matchedText ? `Matched ${latest.matchedText}` : latest.selector ? `Target ${latest.selector}` : latest.targetOfficialPath;
   return (
     <div className={`flowStatus ${latest.status}`}>
@@ -430,8 +430,8 @@ function ok(result: WebviewCommandResult): boolean {
   return result.success;
 }
 
-function CommandTile({ title, meta, onClick }: { title: string; meta: string; onClick: () => void }) {
-  return <button className="commandTile" onClick={onClick}><span>{meta}</span><strong>{title}</strong></button>;
+function CommandTile({ icon: Icon, title, meta, onClick }: { icon: React.ElementType; title: string; meta: string; onClick: () => void }) {
+  return <button className="commandTile" onClick={onClick}><Icon size={20} /><span>{meta}</span><strong>{title}</strong></button>;
 }
 
 function LightingPage({ api, derived }: { api: OverlayApi; derived: ReturnType<typeof deriveLogState> }) {
@@ -445,7 +445,7 @@ function LightingPage({ api, derived }: { api: OverlayApi; derived: ReturnType<t
   };
   return (
     <div className="controlBoard pageFade">
-      <PageIntro title="Lighting" note="Effects and color." path={officialPaths.lighting} api={api} />
+      <PageIntro title="Lighting" note="Color, speed, effect." path={officialPaths.lighting} api={api} />
       <section className="lightingStudio">
         <div className="lightingStudioTop">
           <div><span className="eyebrow">Live Lighting</span><h3>{derived.lastOverlayAction?.page === "Lighting" ? derived.lastOverlayAction.action : "Rainbow preview"}</h3></div>
@@ -475,7 +475,7 @@ function PerformancePage({ api, derived }: { api: OverlayApi; derived: ReturnTyp
   const [deadBottom, setDeadBottom] = useState(5);
   return (
     <div className="controlBoard pageFade">
-      <PageIntro title="Performance" note="Trigger, dead zone, presets." path={officialPaths.performance} api={api} />
+      <PageIntro title="Performance" note="Actuation and response." path={officialPaths.performance} api={api} />
       <section className="controlHero performanceHero">
         <div><span className="eyebrow">Tuning</span><h3>{derived.lastOverlayAction?.page === "Performance" ? derived.lastOverlayAction.action : "Balanced"}</h3></div>
         <div className="tabs">{["Normal", "Advanced", "Recalibrate"].map((tab) => <button key={tab} onClick={() => api.runOverlayAction({ page: "Performance", action: `Open ${tab}`, targetOfficialPath: officialPaths.performance, commandType: "clickByText", text: tab === "Advanced" ? "Advanced Settings" : tab })}>{tab}</button>)}</div>
@@ -497,7 +497,7 @@ function AdvancedKeysPage({ api, actions }: { api: OverlayApi; actions: OverlayA
   const openModule = (name = module) => api.runOverlayAction({ page: "Advanced Keys", action: `Open ${name}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: name === "RS / Snappy" ? "RS" : name });
   return (
     <div className="stack pageFade">
-      <PageIntro title="Advanced Keys" note="Tune advanced key behavior through the official driver." path={officialPaths.advancedKeys} api={api} />
+      <PageIntro title="Advanced Keys" note="RS, DKS, MT, TGL." path={officialPaths.advancedKeys} api={api} />
       <div className="advancedWorkspace">
         <section className="panel advancedModulePanel">
           <span>Module</span>
@@ -506,8 +506,8 @@ function AdvancedKeysPage({ api, actions }: { api: OverlayApi; actions: OverlayA
         </section>
         <section className="advancedActions">
           <ControlPanel title="Trigger Point" value={actuation} setValue={setActuation} onApply={async (value) => { const opened = await openModule(); if (!ok(opened)) return; await api.runOverlayAction({ page: "Advanced Keys", action: `${module} Trigger ${value}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "setRangeByNearbyLabel", text: module, nearText: "Trigger", value }); }} />
-          <button className="panel actionPanel" onClick={async () => { const opened = await openModule(); if (!ok(opened)) return; await api.runOverlayAction({ page: "Advanced Keys", action: `Enable ${module}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "setToggleByLabel", text: "Enable", value: true }); }}><span>Toggle</span><strong>Enable</strong><p>Turns on the selected module if the official toggle is visible.</p></button>
-          <button className="panel actionPanel" onClick={async () => { const opened = await openModule(); if (!ok(opened)) return; await api.runOverlayAction({ page: "Advanced Keys", action: `Save ${module}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: "Save", nearText: module === "RS / Snappy" ? "RS" : module }); }}><span>Commit</span><strong>Save</strong><p>Uses the official driver save action.</p></button>
+          <button className="panel actionPanel" onClick={async () => { const opened = await openModule(); if (!ok(opened)) return; await api.runOverlayAction({ page: "Advanced Keys", action: `Enable ${module}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "setToggleByLabel", text: "Enable", value: true }); }}><span>Toggle</span><strong>Enable</strong><p>Activate selected module.</p></button>
+          <button className="panel actionPanel" onClick={async () => { const opened = await openModule(); if (!ok(opened)) return; await api.runOverlayAction({ page: "Advanced Keys", action: `Save ${module}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: "Save", nearText: module === "RS / Snappy" ? "RS" : module }); }}><span>Commit</span><strong>Save</strong><p>Apply in driver.</p></button>
         </section>
       </div>
       <FlowStatus actions={actions} />
@@ -528,7 +528,7 @@ function SocdPage({ api, actions }: { api: OverlayApi; actions: OverlayAction[] 
   };
   return (
     <div className="stack pageFade">
-      <PageIntro title="SOCD" note="Select a mode, then let the official advanced-key page apply it." path={officialPaths.advancedKeys} api={api} />
+      <PageIntro title="SOCD" note="Mode selection." path={officialPaths.advancedKeys} api={api} />
       <div className="socdWorkspace">
         <section className="panel socdModePanel">
           <span>Mode</span>
@@ -538,7 +538,7 @@ function SocdPage({ api, actions }: { api: OverlayApi; actions: OverlayAction[] 
         <section className="panel socdApplyPanel">
           <span>Apply</span>
           <strong>SOCD via official driver</strong>
-          <p>Opens the SOCD area in Advanced Keys and selects the visible official mode.</p>
+          <p>Sync selected mode.</p>
           <div className="actions"><button className="primary" onClick={applyMode}>Apply Mode</button><button onClick={() => api.openOfficialPath(officialPaths.advancedKeys, true)}>Official View</button></div>
         </section>
       </div>
@@ -563,7 +563,7 @@ function KeymapPage({ api, actions }: { api: OverlayApi; actions: OverlayAction[
   };
   return (
     <div className="stack pageFade">
-      <PageIntro title="Keymap" note="Pick a key, choose a common mapping, let the official driver apply it." path={officialPaths.keymap} api={api} />
+      <PageIntro title="Keymap" note="Select a key and assign." path={officialPaths.keymap} api={api} />
       <div className="keymapLayout">
         <section className="keyboardCard">
           <div className="keymapHeader"><span>Selected key</span><strong>{selectedKey.label}</strong></div>
@@ -611,7 +611,7 @@ function MacrosPage({ api, actions }: { api: OverlayApi; actions: OverlayAction[
   };
   return (
     <div className="stack pageFade">
-      <PageIntro title="Macros" note="Build and assign macros through the official driver." path={officialPaths.macros} api={api} />
+      <PageIntro title="Macros" note="Create, record, assign." path={officialPaths.macros} api={api} />
       <div className="macroWorkspace">
         <section className="panel macroComposer">
           <span>Macro slot</span>
@@ -620,10 +620,10 @@ function MacrosPage({ api, actions }: { api: OverlayApi; actions: OverlayAction[
           <label className="fieldLabel">Assign to<select value={target} onChange={(event) => setTarget(event.target.value)}>{macroTargets.map((item) => <option key={item}>{item}</option>)}</select></label>
         </section>
         <section className="macroActions">
-          <button className="panel actionPanel" onClick={createMacro}><span>Step 1</span><strong>Create</strong><p>Name or open the selected macro slot.</p></button>
-          <button className="panel actionPanel" onClick={recordMacro}><span>Step 2</span><strong>Record</strong><p>Starts official macro recording if visible.</p></button>
-          <button className="panel actionPanel" onClick={saveMacro}><span>Step 3</span><strong>Save</strong><p>Stops and saves through the official page.</p></button>
-          <button className="panel actionPanel" onClick={assignMacro}><span>Step 4</span><strong>Assign</strong><p>Maps {slot} to {target} where exposed.</p></button>
+          <button className="panel actionPanel" onClick={createMacro}><span>Step 1</span><strong>Create</strong><p>Open slot.</p></button>
+          <button className="panel actionPanel" onClick={recordMacro}><span>Step 2</span><strong>Record</strong><p>Start capture.</p></button>
+          <button className="panel actionPanel" onClick={saveMacro}><span>Step 3</span><strong>Save</strong><p>Commit macro.</p></button>
+          <button className="panel actionPanel" onClick={assignMacro}><span>Step 4</span><strong>Assign</strong><p>{slot} to {target}.</p></button>
         </section>
       </div>
       <FlowStatus actions={actions} />
@@ -642,7 +642,7 @@ function SettingsPage(props: { theme: string; setTheme: (theme: string) => void;
   };
   return (
     <div className="stack pageFade">
-      <PageIntro title="Settings" note="Device preferences and app options." path={officialPaths.settings} api={props.api} />
+      <PageIntro title="Settings" note="Device and app." path={officialPaths.settings} api={props.api} />
       <div className="settingsWorkspace">
         <section className="panel deviceSettingsPanel">
           <span>Device</span>
@@ -654,7 +654,7 @@ function SettingsPage(props: { theme: string; setTheme: (theme: string) => void;
         </section>
         <section className="panel appSettingsPanel">
           <span>App</span>
-          <strong>Theme and diagnostics</strong>
+          <strong>Theme / diagnostics</strong>
           <label className="fieldLabel">Theme<select value={props.theme} onChange={(event) => props.setTheme(event.target.value)}>{themes.map((item) => <option key={item}>{item}</option>)}</select></label>
           <div className="actions"><button onClick={props.exportLogs}>Export Diagnostics</button><button onClick={props.clearLogs}>Clear Activity</button></div>
           <button onClick={() => props.api.openOfficialPath(officialPaths.settings, true)}>Open Official Settings</button>
@@ -662,7 +662,7 @@ function SettingsPage(props: { theme: string; setTheme: (theme: string) => void;
         <section className="panel resetPanel">
           <span>Reset</span>
           <strong>Keyboard reset</strong>
-          <p>Opens the official reset area only. The final reset action remains inside the official driver.</p>
+          <p>Open reset area.</p>
           <button onClick={() => props.api.runOverlayAction({ page: "Settings", action: "Open Reset Settings", targetOfficialPath: officialPaths.settings, commandType: "clickByText", text: "Reset" })}>Open Reset Area</button>
         </section>
       </div>
@@ -673,7 +673,7 @@ function SettingsPage(props: { theme: string; setTheme: (theme: string) => void;
 }
 
 function RouteCards({ page, path, api, cards }: { page: Page; path: OfficialPath; api: OverlayApi; cards: string[] }) {
-  return <div className="stack pageFade"><PageIntro title={page} note="Route-backed controls. Cards click matching visible official text when possible." path={path} api={api} /><div className="grid three">{cards.map((card) => <button className="panel actionPanel" key={card} onClick={() => api.runOverlayAction({ page, action: `Open ${card}`, targetOfficialPath: path, commandType: "clickByText", text: card })}><span>Official card</span><strong>{card}</strong><p>Best-effort DOM adapter</p></button>)}</div></div>;
+  return <div className="stack pageFade"><PageIntro title={page} note="Driver-backed controls." path={path} api={api} /><div className="grid three">{cards.map((card) => <button className="panel actionPanel" key={card} onClick={() => api.runOverlayAction({ page, action: `Open ${card}`, targetOfficialPath: path, commandType: "clickByText", text: card })}><span>Control</span><strong>{card}</strong><p>Sync via driver.</p></button>)}</div></div>;
 }
 
 function PageIntro({ title, note, path, api }: { title: string; note: string; path: OfficialPath; api: OverlayApi }) {

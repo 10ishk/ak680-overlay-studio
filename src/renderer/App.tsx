@@ -246,7 +246,8 @@ function App() {
       selector: options.selector,
       value: options.value,
       tag: options.tag,
-      nearText: options.nearText
+      nearText: options.nearText,
+      timeoutMs: 6500
     });
     const startedAt = new Date().toISOString();
     setLogState((state) => upsertOverlayAction(state, {
@@ -272,6 +273,7 @@ function App() {
           message: "Official webview did not respond before timeout",
           route: options.targetOfficialPath
         };
+        const displayMessage = formatCommandMessage(result);
         setLogState((state) => upsertOverlayAction(state, {
           id: command.id,
           timestamp: result.timestamp,
@@ -279,14 +281,20 @@ function App() {
           action: options.action,
           targetOfficialPath: options.targetOfficialPath,
           status: "failure",
-          message: result.message
+          message: displayMessage
         }));
-        setToast(result.message);
+        setToast(displayMessage);
         resolve(result);
       }, command.timeoutMs ?? 3500);
       pendingCommands.current.set(command.id, { page: options.page, action: options.action, targetOfficialPath: options.targetOfficialPath, startedAt, resolve, timeout });
-      window.setTimeout(() => {
+      const sendUntil = Date.now() + 2500;
+      const trySend = () => {
+        if (!pendingCommands.current.has(command.id)) return;
         if (sendCommand(command)) return;
+        if (Date.now() < sendUntil) {
+          window.setTimeout(trySend, 180);
+          return;
+        }
         window.clearTimeout(timeout);
         pendingCommands.current.delete(command.id);
         const result: WebviewCommandResult = {
@@ -300,6 +308,7 @@ function App() {
           message: "Official webview is not ready for adapter commands",
           route: options.targetOfficialPath
         };
+        const displayMessage = formatCommandMessage(result);
         setLogState((state) => upsertOverlayAction(state, {
           id: command.id,
           timestamp: result.timestamp,
@@ -307,11 +316,12 @@ function App() {
           action: options.action,
           targetOfficialPath: options.targetOfficialPath,
           status: "failure",
-          message: result.message
+          message: displayMessage
         }));
-        setToast(result.message);
+        setToast(displayMessage);
         resolve(result);
-      }, 220);
+      };
+      window.setTimeout(trySend, 220);
     });
   }, [openOfficialPath, sendCommand]);
 

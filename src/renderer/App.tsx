@@ -716,7 +716,34 @@ function PageIntro({ title, note, path, api }: { title: string; note: string; pa
 }
 
 function OfficialDriverPanel({ mode, setMode, api }: { mode: WebviewMode; setMode: (mode: WebviewMode) => void; api: OverlayApi }) {
-  return <div className="stack pageFade"><div className="notice">The official webview remains mounted. Docked shows it full-size, Compact shows an inspector, Hidden de-emphasizes it while overlay pages control it.</div><div className="actions">{(["Docked", "Compact", "Hidden"] as WebviewMode[]).map((item) => <button className={mode === item ? "primary" : ""} key={item} onClick={() => setMode(item)}>{item}</button>)}</div><AdapterInspector api={api} /></div>;
+  return (
+    <div className="stack pageFade">
+      <PageIntro title="Official Driver" note="Fallback view." path={officialPaths.keymap} api={api} />
+      <div className="officialControlGrid">
+        <section className="panel officialViewPanel">
+          <div className="settingsHero">
+            <span>View</span>
+            <strong>{mode}</strong>
+            <small>Embedded AJAZZ driver</small>
+          </div>
+          <div className="modeButtons">{(["Docked", "Compact", "Hidden"] as WebviewMode[]).map((item) => <button className={mode === item ? "active" : ""} key={item} onClick={() => setMode(item)}>{item}</button>)}</div>
+        </section>
+        <section className="panel officialRoutesPanel">
+          <span>Routes</span>
+          <strong>Open official page</strong>
+          <div className="routeButtonGrid">
+            <button onClick={() => api.openOfficialPath(officialPaths.keymap)}>Keymap</button>
+            <button onClick={() => api.openOfficialPath(officialPaths.lighting)}>Lighting</button>
+            <button onClick={() => api.openOfficialPath(officialPaths.performance)}>Performance</button>
+            <button onClick={() => api.openOfficialPath(officialPaths.advancedKeys)}>Advanced</button>
+            <button onClick={() => api.openOfficialPath(officialPaths.macros)}>Macros</button>
+            <button onClick={() => api.openOfficialPath(officialPaths.settings)}>Settings</button>
+          </div>
+        </section>
+      </div>
+      <AdapterInspector api={api} />
+    </div>
+  );
 }
 
 function AdapterInspector({ api }: { api: OverlayApi }) {

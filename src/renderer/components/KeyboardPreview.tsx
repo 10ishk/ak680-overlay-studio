@@ -32,6 +32,7 @@ export function KeyboardPreview({
       <div className="keyboardPreview__handle" />
       <div className="keyboardPreview__case">
         <div className="keyboardPreview__glow" />
+        <div className="keyboardPreview__ledRail" />
         <div className="keyboardPreview__keys">
           {ak680Layout.map((key) => {
             const hue = Math.round((key.x / AK680_LAYOUT_WIDTH) * 265 + (key.y / AK680_LAYOUT_HEIGHT) * 55 + 145);
@@ -49,6 +50,7 @@ export function KeyboardPreview({
                 } as CSSProperties}
                 type="button"
                 onClick={() => onKeySelect?.(key.id, key)}
+                aria-pressed={selectedKey === key.id}
               >
                 <span className="keyboardPreview__shine" />
                 <span className="keyboardPreview__label">
@@ -59,7 +61,6 @@ export function KeyboardPreview({
             );
           })}
         </div>
-        <div className="keyboardPreview__knob" />
       </div>
     </div>
   );

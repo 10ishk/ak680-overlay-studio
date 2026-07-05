@@ -634,19 +634,22 @@ function MacrosPage({ api, actions }: { api: OverlayApi; actions: OverlayAction[
       <PageIntro title="Macros" note="Create, record, assign." path={officialPaths.macros} api={api} />
       <div className="macroWorkspace">
         <section className="panel macroComposer">
-          <span>Macro slot</span>
-          <strong>{slot}</strong>
+          <div className="macroHero">
+            <span>Macro</span>
+            <strong>{slot}</strong>
+            <small>Target {target}</small>
+          </div>
           <div className="macroSlots">{macroSlots.map((item) => <button className={slot === item ? "active" : ""} key={item} onClick={() => setSlot(item)}>{item}</button>)}</div>
           <label className="fieldLabel">Assign to<select value={target} onChange={(event) => setTarget(event.target.value)}>{macroTargets.map((item) => <option key={item}>{item}</option>)}</select></label>
+          <ActionSyncStrip action={actions[0]} idleLabel="Macro ready" />
         </section>
         <section className="macroActions">
-          <button className="panel actionPanel" onClick={createMacro}><span>Step 1</span><strong>Create</strong><p>Open slot.</p></button>
-          <button className="panel actionPanel" onClick={recordMacro}><span>Step 2</span><strong>Record</strong><p>Start capture.</p></button>
-          <button className="panel actionPanel" onClick={saveMacro}><span>Step 3</span><strong>Save</strong><p>Commit macro.</p></button>
-          <button className="panel actionPanel" onClick={assignMacro}><span>Step 4</span><strong>Assign</strong><p>{slot} to {target}.</p></button>
+          <button className="panel actionPanel macroStep" onClick={createMacro}><span>01</span><strong>Create</strong><p>Open slot.</p></button>
+          <button className="panel actionPanel macroStep" onClick={recordMacro}><span>02</span><strong>Record</strong><p>Start capture.</p></button>
+          <button className="panel actionPanel macroStep" onClick={saveMacro}><span>03</span><strong>Save</strong><p>Commit macro.</p></button>
+          <button className="panel actionPanel macroStep" onClick={assignMacro}><span>04</span><strong>Assign</strong><p>{slot} to {target}.</p></button>
         </section>
       </div>
-      <FlowStatus actions={actions} />
     </div>
   );
 }

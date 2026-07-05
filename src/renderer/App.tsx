@@ -185,6 +185,7 @@ function App() {
       if (pending) {
         window.clearTimeout(pending.timeout);
         pendingCommands.current.delete(result.id);
+        const displayMessage = formatCommandMessage(result);
         setLogState((state) => upsertOverlayAction(state, {
           id: result.id,
           timestamp: result.timestamp,
@@ -192,12 +193,12 @@ function App() {
           action: pending.action,
           targetOfficialPath: pending.targetOfficialPath,
           status: result.success ? "success" : "failure",
-          message: result.message,
+          message: displayMessage,
           matchedText: result.matchedText,
           selector: result.selector,
-          details: result.details
+          details: { rawMessage: result.message, command: result.command, route: result.route, details: result.details }
         }));
-        setToast(result.success ? `Applied: ${pending.action}` : result.message);
+        setToast(result.success ? `Applied: ${pending.action}` : displayMessage);
         pending.resolve(result);
       }
     }
@@ -444,6 +445,31 @@ function ActionSyncStrip({ action, idleLabel = "Ready" }: { action?: OverlayActi
 
 function ok(result: WebviewCommandResult): boolean {
   return result.success;
+}
+
+function formatCommandMessage(result: WebviewCommandResult): string {
+  if (result.success) {
+    if (result.command === "navigateToPath") return "Official page opened.";
+    if (result.command === "waitForText" || result.command === "waitForSelector") return "Official page is ready.";
+    if (result.command.startsWith("snapshot")) return "Snapshot captured.";
+    if (result.command === "getRememberedHidDevices") return result.message || "Device permission checked.";
+    return "Synced through official driver.";
+  }
+
+  const message = result.message || "Official driver action failed.";
+  if (/not ready|did not respond|timeout|timed out/i.test(message)) {
+    return "Official driver is still loading. Open the official view or try again.";
+  }
+  if (/did not become ready|waiting for text|route/i.test(message)) {
+    return "Official page did not show the expected controls. Reload the route and try again.";
+  }
+  if (/could not find|no .*provided|unavailable/i.test(message)) {
+    return "Control was not found on the official page. Open the official view to confirm the page loaded.";
+  }
+  if (/outside official|blocked unknown/i.test(message)) {
+    return "Blocked because the official driver route is not supported.";
+  }
+  return message;
 }
 
 function CommandTile({ icon: Icon, title, meta, onClick }: { icon: React.ElementType; title: string; meta: string; onClick: () => void }) {

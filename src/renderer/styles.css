@@ -102,6 +102,7 @@ button:disabled, input:disabled { cursor: not-allowed; opacity: 0.45; }
 nav button { display: flex; align-items: center; gap: 12px; width: 100%; color: color-mix(in srgb, var(--text) 74%, var(--muted)); background: transparent; text-align: left; min-height: 54px; border-radius: 12px; }
 nav button.active { background: linear-gradient(135deg, rgba(104,118,255,0.18), rgba(255,255,255,0.055)); color: var(--text); border-color: rgba(126,142,255,0.35); box-shadow: inset 3px 0 0 #7f8cff, inset 0 1px 0 rgba(255,255,255,0.08); }
 .primary { background: linear-gradient(135deg, var(--accent), #ffd36c); border-color: rgba(255,255,255,0.18); color: #101114; font-weight: 800; box-shadow: 0 12px 34px rgba(255, 138, 61, 0.22); }
+.primary:disabled { opacity: 0.72; filter: saturate(0.75); }
 
 .workspace { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; }
 .topbar {

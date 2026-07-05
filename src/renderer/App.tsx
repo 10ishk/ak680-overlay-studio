@@ -393,12 +393,26 @@ function App() {
 }
 
 function Dashboard(props: { api: OverlayApi; derived: ReturnType<typeof deriveLogState>; actions: OverlayAction[]; session: { active: boolean }; startSession: () => void; stopSession: () => void }) {
+  const [connecting, setConnecting] = useState(false);
+  const connectDevice = async () => {
+    if (connecting) return;
+    setConnecting(true);
+    try {
+      const detected = await props.api.runOverlayAction({ page: "Dashboard", action: "Prepare official driver", targetOfficialPath: officialPaths.keymap, commandType: "detectOfficialState" });
+      if (!ok(detected)) return;
+      await props.api.runOverlayAction({ page: "Dashboard", action: "Check AK680 permission", targetOfficialPath: officialPaths.keymap, commandType: "getRememberedHidDevices" });
+      await props.api.runOverlayAction({ page: "Dashboard", action: "Connect AK680 V2", targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: "Connect", tag: "button" });
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   return (
     <div className="dashboard pageFade">
       <section className="keyboardShowcase">
         <div className="showcaseTop">
           <div className="deviceIdentity"><span className="deviceThumb" /><div><strong>AK680 V2</strong><p>{props.derived.deviceConnectStatus}</p></div></div>
-          <div className="heroActions"><button className="primary" onClick={async () => { await props.api.runOverlayAction({ page: "Dashboard", action: "Detect official driver", targetOfficialPath: officialPaths.keymap, commandType: "detectOfficialState" }); await props.api.runOverlayAction({ page: "Dashboard", action: "Check remembered AK680 permission", targetOfficialPath: officialPaths.keymap, commandType: "getRememberedHidDevices" }); await props.api.runOverlayAction({ page: "Dashboard", action: "Connect AK680 V2", targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: "Connect", tag: "button" }); }}>Connect</button><button onClick={() => props.api.openOfficialPath(officialPaths.keymap, true)}>Official</button></div>
+          <div className="heroActions"><button className="primary" disabled={connecting} onClick={connectDevice}>{connecting ? "Connecting..." : "Connect"}</button><button onClick={() => props.api.openOfficialPath(officialPaths.keymap, true)}>Official</button></div>
         </div>
         <KeyboardPreview accentColor="#7f8cff" lightingMode="rainbow" />
         <div className="showcaseStats">

@@ -330,6 +330,10 @@ function App() {
   const startSession = useCallback(() => setLogState((state) => state.session.active ? state : startCaptureSession(state)), []);
   const stopSession = useCallback(() => setLogState((state) => state.session.active ? stopCaptureSession(state) : state), []);
   const changeWebviewMode = useCallback((mode: WebviewMode) => setLogState((state) => setWebviewMode(state, mode)), []);
+  const changeOfficialViewMode = useCallback((mode: WebviewMode) => {
+    changeWebviewMode(mode);
+    if (mode !== "Hidden") setPage("Official Driver");
+  }, [changeWebviewMode]);
   const exportLogs = useCallback(() => {
     const blob = new Blob([exportLogJson(logState)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -342,6 +346,7 @@ function App() {
 
   const api: OverlayApi = useMemo(() => ({ openOfficialPath, runOverlayAction }), [openOfficialPath, runOverlayAction]);
   const actionsFor = useCallback((targetPage: Page) => logState.actions.filter((action) => action.page === targetPage).slice(0, 4), [logState.actions]);
+  const visibleWebviewMode = page === "Official Driver" ? logState.webviewMode : "Hidden";
   const content = page === "Dashboard"
     ? <Dashboard api={api} derived={derived} actions={actionsFor("Dashboard")} startSession={startSession} stopSession={stopSession} session={logState.session} />
     : page === "Lighting"
@@ -379,7 +384,7 @@ function App() {
             <span className="pill">Official {derived.currentRoute}</span>
             <span className={`pill adapter ${officialAdapterState}`}>Adapter {adapterLabel(officialAdapterState)}</span>
             <span className="pill">Last {derived.lastOverlayAction?.status ?? "idle"}</span>
-            <label className="selectLabel">Official View<select value={logState.webviewMode} onChange={(event) => changeWebviewMode(event.target.value as WebviewMode)}>{(["Docked", "Compact", "Hidden"] as WebviewMode[]).map((mode) => <option key={mode}>{mode}</option>)}</select></label>
+            <label className="selectLabel">Official View<select value={logState.webviewMode} onChange={(event) => changeOfficialViewMode(event.target.value as WebviewMode)}>{(["Docked", "Compact", "Hidden"] as WebviewMode[]).map((mode) => <option key={mode}>{mode}</option>)}</select></label>
             <select value={theme} onChange={(event) => setThemePersisted(event.target.value)}>{themes.map((item) => <option key={item}>{item}</option>)}</select>
           </div>
         </header>
@@ -387,7 +392,7 @@ function App() {
       </section>
       <aside className="statusRail"><UtilityDrawer derived={derived} actions={logState.actions} events={logState.events} exportLogs={exportLogs} /></aside>
       {toast && <div className="toast" onAnimationEnd={() => setToast(undefined)}>{toast}</div>}
-      <OfficialWebviewHost ref={webviewRef} mode={logState.webviewMode} targetUrl={officialTargetUrl} addLogEvent={addLogEvent} updateOfficialUrl={updateOfficialUrl} openOfficialPath={openOfficialPath} setMode={changeWebviewMode} setAdapterState={setOfficialAdapterState} />
+      <OfficialWebviewHost ref={webviewRef} mode={visibleWebviewMode} targetUrl={officialTargetUrl} addLogEvent={addLogEvent} updateOfficialUrl={updateOfficialUrl} openOfficialPath={openOfficialPath} setMode={changeOfficialViewMode} setAdapterState={setOfficialAdapterState} />
     </div>
   );
 }
@@ -1026,11 +1031,11 @@ const OfficialWebviewHost = React.forwardRef<ElectronWebview | null, { mode: Web
         <button onClick={() => openInWebview(officialPaths.lighting)}>Open Lighting</button>
         <button onClick={() => openInWebview(officialPaths.performance)}>Open Performance</button>
         <button onClick={() => openInWebview(officialPaths.advancedKeys)}>Open Advanced Keys</button>
-        <button onClick={() => setModeRef.current("Docked")}>Open Official Driver Page</button>
+        <button onClick={() => openOfficialPathRef.current(officialPaths.keymap, true)}>Open Official Driver Page</button>
       </div>
       <div className="officialRouteBanner">{statusMessage}</div>
       <webview ref={(node) => { localRef.current = node as ElectronWebview | null; }} src={initialUrl.current} preload={bridge.metadata.webviewPreloadPath} allow="hid" partition="persist:ajazz-official" />
-      {webviewError && <div className="webviewError"><strong>Official page failed to load</strong><span>{webviewError}</span><div className="actions compact"><button onClick={reloadCustomKeys}>Reload Custom Keys</button><button onClick={() => setModeRef.current("Docked")}>Open Official View</button></div></div>}
+      {webviewError && <div className="webviewError"><strong>Official page failed to load</strong><span>{webviewError}</span><div className="actions compact"><button onClick={reloadCustomKeys}>Reload Custom Keys</button><button onClick={() => openOfficialPathRef.current(officialPaths.keymap, true)}>Open Official View</button></div></div>}
     </div>
   );
 });

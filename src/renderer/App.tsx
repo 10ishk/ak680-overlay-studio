@@ -61,6 +61,7 @@ type ElectronWebview = HTMLElement & {
 };
 
 type OfficialLoadState = "loading" | "loaded" | "failed" | "blank";
+type OfficialAdapterState = "loading" | "ready" | "failed";
 
 type PendingCommand = {
   page: Page;
@@ -157,6 +158,7 @@ function App() {
   const [logState, setLogState] = useState(initialLogState);
   const [marker, setMarker] = useState(markerExamples[0]);
   const [officialTargetUrl, setOfficialTargetUrl] = useState(bridge.metadata.officialDriverUrl);
+  const [officialAdapterState, setOfficialAdapterState] = useState<OfficialAdapterState>("loading");
   const [toast, setToast] = useState<string | undefined>();
   const webviewRef = useRef<ElectronWebview | null>(null);
   const pendingCommands = useRef(new Map<string, PendingCommand>());
@@ -364,6 +366,7 @@ function App() {
           <div className="statusRow">
             <span className="pill good">{derived.connectedDeviceStatus}</span>
             <span className="pill">Official {derived.currentRoute}</span>
+            <span className={`pill adapter ${officialAdapterState}`}>Adapter {adapterLabel(officialAdapterState)}</span>
             <span className="pill">Last {derived.lastOverlayAction?.status ?? "idle"}</span>
             <label className="selectLabel">Official View<select value={logState.webviewMode} onChange={(event) => changeWebviewMode(event.target.value as WebviewMode)}>{(["Docked", "Compact", "Hidden"] as WebviewMode[]).map((mode) => <option key={mode}>{mode}</option>)}</select></label>
             <select value={theme} onChange={(event) => setThemePersisted(event.target.value)}>{themes.map((item) => <option key={item}>{item}</option>)}</select>
@@ -373,7 +376,7 @@ function App() {
       </section>
       <aside className="statusRail"><UtilityDrawer derived={derived} actions={logState.actions} events={logState.events} exportLogs={exportLogs} /></aside>
       {toast && <div className="toast" onAnimationEnd={() => setToast(undefined)}>{toast}</div>}
-      <OfficialWebviewHost ref={webviewRef} mode={logState.webviewMode} targetUrl={officialTargetUrl} addLogEvent={addLogEvent} updateOfficialUrl={updateOfficialUrl} openOfficialPath={openOfficialPath} setMode={changeWebviewMode} />
+      <OfficialWebviewHost ref={webviewRef} mode={logState.webviewMode} targetUrl={officialTargetUrl} addLogEvent={addLogEvent} updateOfficialUrl={updateOfficialUrl} openOfficialPath={openOfficialPath} setMode={changeWebviewMode} setAdapterState={setOfficialAdapterState} />
     </div>
   );
 }
@@ -690,13 +693,14 @@ function AdapterInspector({ api }: { api: OverlayApi }) {
   return <section className="panel inspectorPanel"><span>Adapter Inspector</span><strong>Live DOM discovery</strong><p>Developer-only snapshots for tuning adapters. No cookies, storage, auth headers, or full HTML are collected.</p><div className="actions"><button onClick={() => run("Snapshot visible buttons", "snapshotVisibleButtons")}>Snapshot visible buttons</button><button onClick={() => run("Snapshot visible inputs", "snapshotVisibleInputs")}>Snapshot visible inputs</button><button onClick={() => run("Snapshot visible tabs", "snapshotVisibleTabs")}>Snapshot visible tabs</button><button onClick={() => run("Snapshot page text summary", "snapshotPageTextSummary")}>Snapshot page text summary</button><button onClick={() => run("Snapshot active elements", "snapshotActiveElements")}>Snapshot selected/active elements</button></div>{lastResult && <pre className="inspectorOutput">{JSON.stringify(lastResult.details ?? lastResult.snapshot ?? lastResult, null, 2)}</pre>}</section>;
 }
 
-const OfficialWebviewHost = React.forwardRef<ElectronWebview | null, { mode: WebviewMode; targetUrl: string; addLogEvent: (payload: unknown) => void; updateOfficialUrl: (url: string, type?: string) => void; openOfficialPath: (path?: OfficialPath, switchPage?: boolean) => void; setMode: (mode: WebviewMode) => void }>(function OfficialWebviewHost(props, ref) {
+const OfficialWebviewHost = React.forwardRef<ElectronWebview | null, { mode: WebviewMode; targetUrl: string; addLogEvent: (payload: unknown) => void; updateOfficialUrl: (url: string, type?: string) => void; openOfficialPath: (path?: OfficialPath, switchPage?: boolean) => void; setMode: (mode: WebviewMode) => void; setAdapterState: (state: OfficialAdapterState) => void }>(function OfficialWebviewHost(props, ref) {
   const localRef = useRef<ElectronWebview | null>(null);
   const initialUrl = useRef(props.targetUrl);
   const addLogEventRef = useRef(props.addLogEvent);
   const updateOfficialUrlRef = useRef(props.updateOfficialUrl);
   const openOfficialPathRef = useRef(props.openOfficialPath);
   const setModeRef = useRef(props.setMode);
+  const setAdapterStateRef = useRef(props.setAdapterState);
   const [domReady, setDomReady] = useState(false);
   const [webviewError, setWebviewError] = useState<string | undefined>();
   const [loadState, setLoadState] = useState<OfficialLoadState>("loading");
@@ -711,7 +715,8 @@ const OfficialWebviewHost = React.forwardRef<ElectronWebview | null, { mode: Web
     updateOfficialUrlRef.current = props.updateOfficialUrl;
     openOfficialPathRef.current = props.openOfficialPath;
     setModeRef.current = props.setMode;
-  }, [props.addLogEvent, props.updateOfficialUrl, props.openOfficialPath, props.setMode]);
+    setAdapterStateRef.current = props.setAdapterState;
+  }, [props.addLogEvent, props.updateOfficialUrl, props.openOfficialPath, props.setMode, props.setAdapterState]);
 
   useEffect(() => {
     if (typeof ref === "function") ref(localRef.current);
@@ -740,6 +745,7 @@ const OfficialWebviewHost = React.forwardRef<ElectronWebview | null, { mode: Web
       void webview.loadURL?.(toOfficialUrl(path)).catch((error) => {
         pendingPath.current = undefined;
         setLoadState("failed");
+        setAdapterStateRef.current("failed");
         setWebviewError(String(error));
       });
     };
@@ -777,6 +783,7 @@ const OfficialWebviewHost = React.forwardRef<ElectronWebview | null, { mode: Web
     const ready = () => {
       setDomReady(true);
       setLoadState("loaded");
+      setAdapterStateRef.current("ready");
       setWebviewError(undefined);
       logWebviewEvent("dom-ready");
       ensureUsefulRoute();
@@ -788,6 +795,7 @@ const OfficialWebviewHost = React.forwardRef<ElectronWebview | null, { mode: Web
         const result = commandResultFromPayload(detail.args?.[0]);
         if (result?.command === "waitForText") {
           setStatusMessage(result.success ? "Official driver loaded" : "Official route loaded; adapter readiness not confirmed");
+          setAdapterStateRef.current(result.success ? "ready" : "loading");
         }
         addLogEventRef.current(detail.args?.[0]);
       }
@@ -808,18 +816,21 @@ const OfficialWebviewHost = React.forwardRef<ElectronWebview | null, { mode: Web
       console.log("[ak680-webview] did-fail-load", detail.errorDescription, detail.validatedURL);
       pendingPath.current = undefined;
       setLoadState("failed");
+      setAdapterStateRef.current("failed");
       setWebviewError(detail.errorDescription ?? "Official webview failed to load");
       setStatusMessage("Official page failed to load");
     };
 
     const start = () => {
       setLoadState("loading");
+      setAdapterStateRef.current("loading");
       setStatusMessage("Loading official driver...");
       logWebviewEvent("did-start-loading");
     };
 
     const stop = () => {
       setLoadState("loaded");
+      setAdapterStateRef.current("ready");
       logWebviewEvent("did-stop-loading");
     };
 
@@ -864,6 +875,7 @@ const OfficialWebviewHost = React.forwardRef<ElectronWebview | null, { mode: Web
     void webview.loadURL(props.targetUrl).catch((error) => {
       pendingPath.current = undefined;
       setLoadState("failed");
+      setAdapterStateRef.current("failed");
       setWebviewError(String(error));
     });
   }, [domReady, props.targetUrl]);
@@ -879,6 +891,7 @@ const OfficialWebviewHost = React.forwardRef<ElectronWebview | null, { mode: Web
     void webview.loadURL(url).catch((error) => {
       pendingPath.current = undefined;
       setLoadState("failed");
+      setAdapterStateRef.current("failed");
       setWebviewError(String(error));
     });
   };
@@ -1024,6 +1037,12 @@ function statusLabel(state: OfficialLoadState): string {
   if (state === "loaded") return "Official driver loaded";
   if (state === "failed") return "Official page failed to load";
   return "Official route unsupported/blank";
+}
+
+function adapterLabel(state: OfficialAdapterState): string {
+  if (state === "ready") return "ready";
+  if (state === "failed") return "failed";
+  return "loading";
 }
 
 const root = document.getElementById("root");

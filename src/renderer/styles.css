@@ -87,6 +87,9 @@ h3 { font-size: 16px; margin-bottom: 14px; }
 .pill { border: 1px solid var(--border); border-radius: 999px; padding: 8px 10px; color: #cbd2dd; background: rgba(255,255,255,0.05); font-size: 12px; }
 .pill.good { color: var(--accent); background: var(--accent-soft); }
 .pill.recording { color: #ffd18f; background: rgba(255, 184, 77, 0.14); border-color: rgba(255, 184, 77, 0.34); }
+.pill.adapter.loading { color: #ffd18f; background: rgba(255, 184, 77, 0.12); border-color: rgba(255, 184, 77, 0.3); }
+.pill.adapter.ready { color: var(--accent); background: var(--accent-soft); border-color: rgba(136, 211, 89, 0.28); }
+.pill.adapter.failed { color: #ffaaaa; background: rgba(255, 92, 92, 0.12); border-color: rgba(255, 92, 92, 0.3); }
 
 .content { min-height: 0; overflow: auto; padding: 28px 34px 34px; }
 .stack, .dashboard, .controlBoard { display: grid; gap: 18px; }

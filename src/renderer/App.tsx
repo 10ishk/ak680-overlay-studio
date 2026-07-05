@@ -797,12 +797,13 @@ function OfficialDriverPanel({ mode, setMode, api }: { mode: WebviewMode; setMod
 }
 
 function AdapterInspector({ api }: { api: OverlayApi }) {
+  const [open, setOpen] = useState(false);
   const [lastResult, setLastResult] = useState<WebviewCommandResult | undefined>();
   const run = async (label: string, commandType: WebviewCommandType) => {
     const result = await api.runOverlayAction({ page: "Settings", action: label, targetOfficialPath: officialPaths.home, commandType });
     setLastResult(result);
   };
-  return <section className="panel inspectorPanel"><span>Adapter Inspector</span><strong>Live DOM discovery</strong><p>Developer-only snapshots for tuning adapters. No cookies, storage, auth headers, or full HTML are collected.</p><div className="actions"><button onClick={() => run("Snapshot visible buttons", "snapshotVisibleButtons")}>Snapshot visible buttons</button><button onClick={() => run("Snapshot visible inputs", "snapshotVisibleInputs")}>Snapshot visible inputs</button><button onClick={() => run("Snapshot visible tabs", "snapshotVisibleTabs")}>Snapshot visible tabs</button><button onClick={() => run("Snapshot page text summary", "snapshotPageTextSummary")}>Snapshot page text summary</button><button onClick={() => run("Snapshot active elements", "snapshotActiveElements")}>Snapshot selected/active elements</button></div>{lastResult && <pre className="inspectorOutput">{JSON.stringify(lastResult.details ?? lastResult.snapshot ?? lastResult, null, 2)}</pre>}</section>;
+  return <section className={`panel inspectorPanel ${open ? "open" : ""}`}><div className="inspectorHeader"><div><span>Advanced diagnostics</span><strong>Adapter Inspector</strong></div><button onClick={() => setOpen((value) => !value)}>{open ? "Hide" : "Show"}</button></div>{open && <><p>Developer snapshots for tuning official-page adapters.</p><div className="actions"><button onClick={() => run("Snapshot visible buttons", "snapshotVisibleButtons")}>Buttons</button><button onClick={() => run("Snapshot visible inputs", "snapshotVisibleInputs")}>Inputs</button><button onClick={() => run("Snapshot visible tabs", "snapshotVisibleTabs")}>Tabs</button><button onClick={() => run("Snapshot page text summary", "snapshotPageTextSummary")}>Text</button><button onClick={() => run("Snapshot active elements", "snapshotActiveElements")}>Active</button></div>{lastResult && <pre className="inspectorOutput">{JSON.stringify(lastResult.details ?? lastResult.snapshot ?? lastResult, null, 2)}</pre>}</>}</section>;
 }
 
 const OfficialWebviewHost = React.forwardRef<ElectronWebview | null, { mode: WebviewMode; targetUrl: string; addLogEvent: (payload: unknown) => void; updateOfficialUrl: (url: string, type?: string) => void; openOfficialPath: (path?: OfficialPath, switchPage?: boolean) => void; setMode: (mode: WebviewMode) => void; setAdapterState: (state: OfficialAdapterState) => void }>(function OfficialWebviewHost(props, ref) {

@@ -888,7 +888,26 @@ webview { display: block; width: 100%; height: 100%; border-radius: 16px; backgr
 .event.isError { border-color: rgba(255,90,90,0.3); }
 .eventDetails { display: grid; gap: 10px; padding: 0 12px 12px; }
 .eventDetails pre { max-height: 220px; overflow: auto; margin: 0; padding: 12px; border-radius: 10px; background: rgba(0,0,0,0.24); color: var(--text); font-size: 11px; }
-.inspectorPanel { display: grid; gap: 12px; }
+.inspectorPanel { display: grid; gap: 12px; min-height: 0; }
+.inspectorPanel:not(.open) {
+  min-height: 0;
+  padding-block: 14px;
+}
+.inspectorHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.inspectorHeader strong {
+  margin: 4px 0 0;
+  font-size: 16px;
+}
+.inspectorHeader button {
+  min-width: 74px;
+  padding: 8px 10px;
+  border-radius: 999px;
+}
 .inspectorOutput {
   max-height: 300px;
   overflow: auto;

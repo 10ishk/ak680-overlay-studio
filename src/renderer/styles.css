@@ -180,6 +180,39 @@ h3 { font-size: 16px; margin-bottom: 14px; }
 }
 .statusChip.good { color: #9bd67b; border-color: rgba(155,214,123,0.26); background: rgba(155,214,123,0.1); }
 .statusChip.bad { color: #ff9a9a; border-color: rgba(255,90,90,0.3); background: rgba(255,90,90,0.1); }
+.flowStatus {
+  display: grid;
+  gap: 4px;
+  min-height: 72px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.045);
+}
+.flowStatus span {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.flowStatus strong {
+  color: var(--text);
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.flowStatus p,
+.flowStatus small {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.flowStatus.pending { border-color: rgba(255,184,77,0.28); background: rgba(255,184,77,0.07); }
+.flowStatus.success { border-color: rgba(155,214,123,0.28); background: rgba(155,214,123,0.07); }
+.flowStatus.failure { border-color: rgba(255,90,90,0.3); background: rgba(255,90,90,0.07); }
+.flowStatus.pending span { color: #ffe0a8; }
+.flowStatus.success span { color: #9bd67b; }
+.flowStatus.failure span { color: #ff9a9a; }
 
 .commandGrid {
   display: grid;

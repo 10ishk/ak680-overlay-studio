@@ -298,6 +298,7 @@ function App() {
   }, [logState]);
 
   const api: OverlayApi = useMemo(() => ({ openOfficialPath, runOverlayAction }), [openOfficialPath, runOverlayAction]);
+  const actionsFor = useCallback((targetPage: Page) => logState.actions.filter((action) => action.page === targetPage).slice(0, 4), [logState.actions]);
   const content = page === "Dashboard"
     ? <Dashboard api={api} derived={derived} startSession={startSession} stopSession={stopSession} session={logState.session} />
     : page === "Lighting"
@@ -305,15 +306,15 @@ function App() {
       : page === "Performance"
         ? <PerformancePage api={api} derived={derived} />
         : page === "Advanced Keys"
-          ? <AdvancedKeysPage api={api} />
+          ? <AdvancedKeysPage api={api} actions={actionsFor("Advanced Keys")} />
           : page === "SOCD"
-            ? <SocdPage api={api} />
+            ? <SocdPage api={api} actions={actionsFor("SOCD")} />
             : page === "Keymap"
-              ? <KeymapPage api={api} />
+              ? <KeymapPage api={api} actions={actionsFor("Keymap")} />
               : page === "Macros"
-                ? <MacrosPage api={api} />
+                ? <MacrosPage api={api} actions={actionsFor("Macros")} />
                 : page === "Settings"
-                  ? <SettingsPage theme={theme} setTheme={setThemePersisted} api={api} exportLogs={exportLogs} clearLogs={clearLogs} />
+                  ? <SettingsPage theme={theme} setTheme={setThemePersisted} api={api} exportLogs={exportLogs} clearLogs={clearLogs} actions={actionsFor("Settings")} />
                   : page === "Official Driver"
                     ? <OfficialDriverPanel mode={logState.webviewMode} setMode={changeWebviewMode} api={api} />
                     : <LogsPage events={logState.events} actions={logState.actions} marker={marker} setMarker={setMarker} addMarker={addMarker} exportLogs={exportLogs} clearLogs={clearLogs} derived={derived} />;
@@ -378,6 +379,20 @@ function StatusChip({ label, value, tone = "idle" }: { label: string; value: str
   return <span className={`statusChip ${tone}`}><small>{label}</small>{value}</span>;
 }
 
+function FlowStatus({ actions }: { actions: OverlayAction[] }) {
+  const latest = actions[0];
+  if (!latest) return <div className="flowStatus idle"><span>Ready</span><strong>No action sent yet</strong><p>Prepare the official page, then apply a setting.</p></div>;
+  const details = latest.matchedText ? `Matched ${latest.matchedText}` : latest.selector ? `Target ${latest.selector}` : latest.targetOfficialPath;
+  return (
+    <div className={`flowStatus ${latest.status}`}>
+      <span>{latest.status}</span>
+      <strong>{latest.action}</strong>
+      <p>{latest.message}</p>
+      <small>{details}</small>
+    </div>
+  );
+}
+
 function CommandTile({ title, meta, onClick }: { title: string; meta: string; onClick: () => void }) {
   return <button className="commandTile" onClick={onClick}><span>{meta}</span><strong>{title}</strong></button>;
 }
@@ -439,7 +454,7 @@ function PerformancePage({ api, derived }: { api: OverlayApi; derived: ReturnTyp
   );
 }
 
-function AdvancedKeysPage({ api }: { api: OverlayApi }) {
+function AdvancedKeysPage({ api, actions }: { api: OverlayApi; actions: OverlayAction[] }) {
   const [module, setModule] = useState(advancedModules[0]);
   const [actuation, setActuation] = useState(18);
   const openModule = (name = module) => api.runOverlayAction({ page: "Advanced Keys", action: `Open ${name}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: name === "RS / Snappy" ? "RS" : name });
@@ -458,11 +473,12 @@ function AdvancedKeysPage({ api }: { api: OverlayApi }) {
           <button className="panel actionPanel" onClick={async () => { await openModule(); await api.runOverlayAction({ page: "Advanced Keys", action: `Save ${module}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: "Save", nearText: module === "RS / Snappy" ? "RS" : module }); }}><span>Commit</span><strong>Save</strong><p>Uses the official driver save action.</p></button>
         </section>
       </div>
+      <FlowStatus actions={actions} />
     </div>
   );
 }
 
-function SocdPage({ api }: { api: OverlayApi }) {
+function SocdPage({ api, actions }: { api: OverlayApi; actions: OverlayAction[] }) {
   const [mode, setMode] = useState(socdModes[0]);
   const applyMode = async () => {
     await api.runOverlayAction({ page: "SOCD", action: "Open SOCD panel", targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: "SOCD" });
@@ -488,11 +504,12 @@ function SocdPage({ api }: { api: OverlayApi }) {
           <div className="actions"><button className="primary" onClick={applyMode}>Apply Mode</button><button onClick={() => api.openOfficialPath(officialPaths.advancedKeys, true)}>Official View</button></div>
         </section>
       </div>
+      <FlowStatus actions={actions} />
     </div>
   );
 }
 
-function KeymapPage({ api }: { api: OverlayApi }) {
+function KeymapPage({ api, actions }: { api: OverlayApi; actions: OverlayAction[] }) {
   const [selectedKeyId, setSelectedKeyId] = useState("esc");
   const [assignment, setAssignment] = useState("Backspace");
   const selectedKey = ak680Layout.find((key) => key.id === selectedKeyId) ?? ak680Layout[0];
@@ -520,13 +537,14 @@ function KeymapPage({ api }: { api: OverlayApi }) {
           <select value={assignment} onChange={(event) => setAssignment(event.target.value)}>{keyAssignments.map((item) => <option key={item}>{item}</option>)}</select>
           <div className="assignmentGrid">{keyAssignments.slice(0, 8).map((item) => <button className={assignment === item ? "active" : ""} key={item} onClick={() => setAssignment(item)}>{item}</button>)}</div>
           <div className="actions"><button className="primary" onClick={applyAssignment}>Apply Mapping</button><button onClick={() => api.openOfficialPath(officialPaths.keymap, true)}>Official View</button></div>
+          <FlowStatus actions={actions} />
         </section>
       </div>
     </div>
   );
 }
 
-function MacrosPage({ api }: { api: OverlayApi }) {
+function MacrosPage({ api, actions }: { api: OverlayApi; actions: OverlayAction[] }) {
   const [slot, setSlot] = useState(macroSlots[0]);
   const [target, setTarget] = useState(macroTargets[0]);
   const createMacro = async () => {
@@ -565,11 +583,12 @@ function MacrosPage({ api }: { api: OverlayApi }) {
           <button className="panel actionPanel" onClick={assignMacro}><span>Step 4</span><strong>Assign</strong><p>Maps {slot} to {target} where exposed.</p></button>
         </section>
       </div>
+      <FlowStatus actions={actions} />
     </div>
   );
 }
 
-function SettingsPage(props: { theme: string; setTheme: (theme: string) => void; api: OverlayApi; exportLogs: () => void; clearLogs: () => void }) {
+function SettingsPage(props: { theme: string; setTheme: (theme: string) => void; api: OverlayApi; exportLogs: () => void; clearLogs: () => void; actions: OverlayAction[] }) {
   const [returnRate, setReturnRate] = useState("1000Hz");
   const [stability, setStability] = useState(true);
   const [calibration, setCalibration] = useState(true);
@@ -604,6 +623,7 @@ function SettingsPage(props: { theme: string; setTheme: (theme: string) => void;
           <button onClick={() => props.api.runOverlayAction({ page: "Settings", action: "Open Reset Settings", targetOfficialPath: officialPaths.settings, commandType: "clickByText", text: "Reset" })}>Open Reset Area</button>
         </section>
       </div>
+      <FlowStatus actions={props.actions} />
       <AdapterInspector api={props.api} />
     </div>
   );

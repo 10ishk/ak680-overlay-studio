@@ -9,13 +9,15 @@ type KeyboardPreviewProps = {
   accentColor?: string;
   selectedKey?: string;
   onKeySelect?: (keyId: string, key: Ak680Key) => void;
+  compact?: boolean;
 };
 
 export function KeyboardPreview({
   lightingMode = "rainbow",
   accentColor = "#7f8cff",
   selectedKey,
-  onKeySelect
+  onKeySelect,
+  compact = false
 }: KeyboardPreviewProps) {
   const previewStyle = {
     "--keyboard-columns": AK680_LAYOUT_WIDTH,
@@ -25,7 +27,7 @@ export function KeyboardPreview({
 
   return (
     <div
-      className={`keyboardPreview lighting-${lightingMode}`}
+      className={`keyboardPreview lighting-${lightingMode} ${compact ? "is-compact" : ""}`}
       style={previewStyle}
       aria-label="AJAZZ AK680 V2 keyboard preview"
     >
@@ -35,8 +37,9 @@ export function KeyboardPreview({
         <div className="keyboardPreview__ledRail" />
         <div className="keyboardPreview__keys">
           {ak680Layout.map((key) => {
-            const hue = Math.round((key.x / AK680_LAYOUT_WIDTH) * 265 + (key.y / AK680_LAYOUT_HEIGHT) * 55 + 145);
+            const hue = Math.round(132 + (key.x / AK680_LAYOUT_WIDTH) * 146 + (key.y / AK680_LAYOUT_HEIGHT) * 10);
             const glow = lightingMode === "off" ? "transparent" : lightingMode === "solid" ? accentColor : `hsl(${hue} 92% 62%)`;
+            const secondary = key.secondaryLabel ?? key.secondary;
             return (
               <button
                 className={`keyboardPreview__key ${key.type ?? "normal"} ${selectedKey === key.id ? "selected" : ""}`}
@@ -49,12 +52,13 @@ export function KeyboardPreview({
                   "--key-glow": glow
                 } as CSSProperties}
                 type="button"
+                data-key-id={key.id}
                 onClick={() => onKeySelect?.(key.id, key)}
                 aria-pressed={selectedKey === key.id}
               >
-                <span className="keyboardPreview__shine" />
+                <span className="keyboardPreview__edge" />
                 <span className="keyboardPreview__label">
-                  {key.secondary && <small>{key.secondary}</small>}
+                  {secondary && <small>{secondary}</small>}
                   {key.label}
                 </span>
               </button>

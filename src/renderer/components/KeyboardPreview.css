@@ -1,109 +1,160 @@
 .keyboardPreview {
-  --preview-width: min(100%, 1040px);
-  --case-pad-x: clamp(14px, 2.1vw, 26px);
-  --case-pad-y: clamp(13px, 1.8vw, 23px);
-  --key-gap: clamp(3px, 0.45vw, 6px);
+  --preview-width: min(100%, 1060px);
+  --case-pad-x: clamp(12px, 1.45vw, 19px);
+  --case-pad-y: clamp(9px, 1.15vw, 15px);
+  --key-gap: clamp(2px, 0.28vw, 4px);
   position: relative;
   width: var(--preview-width);
   margin-inline: auto;
-  padding: clamp(16px, 2.4vw, 28px) clamp(14px, 2vw, 22px) clamp(24px, 3vw, 34px);
+  padding: clamp(16px, 2.4vw, 30px) clamp(12px, 1.8vw, 22px) clamp(30px, 3vw, 42px);
   display: grid;
   place-items: center;
   isolation: isolate;
-  perspective: 1100px;
+  perspective: 1200px;
+}
+
+.keyboardPreview.is-compact {
+  --preview-width: min(100%, 820px);
+  --case-pad-x: clamp(10px, 1.2vw, 15px);
+  --case-pad-y: clamp(8px, 0.9vw, 12px);
+  --key-gap: 3px;
 }
 
 .keyboardPreview::before {
   content: "";
   position: absolute;
-  inset: 18% 5% 5%;
+  left: 9%;
+  right: 8%;
+  bottom: 8px;
+  height: clamp(24px, 4vw, 48px);
   border-radius: 50%;
-  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.72), transparent 67%);
-  filter: blur(22px);
-  opacity: 0.88;
-  transform: translateY(18%);
-  z-index: -1;
+  background:
+    linear-gradient(90deg, rgba(37, 230, 84, 0.42), rgba(29, 198, 255, 0.5) 38%, rgba(63, 91, 255, 0.52) 61%, rgba(176, 62, 255, 0.46)),
+    radial-gradient(ellipse at center, rgba(0, 0, 0, 0.5), transparent 72%);
+  filter: blur(18px);
+  opacity: 0.62;
+  transform: translateY(40%);
+  z-index: -2;
+}
+
+.keyboardPreview::after {
+  content: "";
+  position: absolute;
+  inset: 12% 1% 9%;
+  border-radius: 30px;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.82), transparent 70%);
+  filter: blur(20px);
+  opacity: 0.85;
+  z-index: -3;
 }
 
 .keyboardPreview__handle {
   position: absolute;
-  left: clamp(3px, 0.8vw, 12px);
-  top: 50%;
-  width: clamp(14px, 1.8vw, 20px);
-  height: clamp(82px, 9.2vw, 116px);
-  border: clamp(3px, 0.45vw, 5px) solid rgba(238, 243, 255, 0.86);
+  left: clamp(2px, 0.48vw, 8px);
+  top: 47%;
+  width: clamp(16px, 1.55vw, 22px);
+  height: clamp(106px, 10.5vw, 142px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-right: 0;
-  border-radius: 16px 0 0 16px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.1), rgba(255,255,255,0.025));
-  box-shadow: inset 2px 0 8px rgba(255,255,255,0.16), 0 0 16px rgba(75, 118, 255, 0.3);
-  transform: translateY(-50%);
-  opacity: 0.9;
-  z-index: 2;
+  border-radius: 12px 0 0 12px;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)),
+    linear-gradient(180deg, #202633, #090c12 78%);
+  box-shadow:
+    inset 3px 0 0 rgba(255,255,255,0.08),
+    inset -7px 0 8px rgba(0,0,0,0.55),
+    0 0 0 1px rgba(0,0,0,0.72),
+    0 12px 28px rgba(0,0,0,0.42);
+  transform: translateY(-50%) rotateX(3deg);
+  opacity: 0.98;
+  z-index: 3;
+}
+
+.keyboardPreview__handle::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 14px;
+  bottom: 14px;
+  width: 5px;
+  border-radius: 999px;
+  background: #05070a;
+  box-shadow:
+    inset 1px 0 0 rgba(255,255,255,0.12),
+    0 0 14px rgba(50, 255, 111, 0.18);
 }
 
 .keyboardPreview__case {
   position: relative;
-  width: min(100%, 960px);
-  aspect-ratio: 7.35 / 2.28;
+  width: min(100%, 990px);
+  aspect-ratio: 8.62 / 2.35;
   padding: var(--case-pad-y) var(--case-pad-x);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: clamp(16px, 2vw, 26px);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: clamp(9px, 1vw, 14px);
   background:
-    radial-gradient(circle at 18% 10%, rgba(117, 102, 255, 0.24), transparent 31%),
-    radial-gradient(circle at 82% 12%, rgba(255, 77, 166, 0.18), transparent 28%),
-    linear-gradient(160deg, rgba(255,255,255,0.16), rgba(255,255,255,0.035) 28%, rgba(0,0,0,0.12) 52%),
-    linear-gradient(180deg, #2a2d38 0%, #121620 45%, #07090e 100%);
+    linear-gradient(90deg, rgba(39, 255, 89, 0.08), transparent 18%, transparent 78%, rgba(162, 49, 255, 0.09)),
+    linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.025) 22%, rgba(0,0,0,0.2) 58%),
+    linear-gradient(180deg, #212733 0%, #10151e 52%, #06080c 100%);
   box-shadow:
-    0 34px 70px rgba(0, 0, 0, 0.46),
-    0 14px 22px rgba(0, 0, 0, 0.34),
-    inset 0 1px 0 rgba(255, 255, 255, 0.24),
-    inset 0 -18px 28px rgba(0, 0, 0, 0.48);
+    0 30px 64px rgba(0, 0, 0, 0.52),
+    0 7px 0 #05070a,
+    0 8px 0 rgba(255,255,255,0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -13px 22px rgba(0, 0, 0, 0.66);
   transform: rotateX(3deg);
   transform-origin: center bottom;
-  overflow: hidden;
 }
 
 .keyboardPreview__case::before {
   content: "";
   position: absolute;
-  inset: clamp(8px, 1vw, 12px);
-  border-radius: clamp(12px, 1.6vw, 20px);
+  inset: 7px;
+  border-radius: clamp(7px, 0.8vw, 11px);
   background:
-    linear-gradient(90deg, rgba(41, 255, 115, 0.12), rgba(33, 205, 255, 0.12), rgba(122, 91, 255, 0.12), rgba(255, 66, 158, 0.1)),
-    rgba(0, 0, 0, 0.28);
-  box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.72);
+    linear-gradient(90deg, rgba(35, 255, 83, 0.14), rgba(24, 222, 218, 0.17) 32%, rgba(31, 118, 255, 0.17) 58%, rgba(163, 67, 255, 0.16)),
+    #070a0f;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.04),
+    inset 0 0 16px rgba(0,0,0,0.94);
 }
 
 .keyboardPreview__case::after {
   content: "";
   position: absolute;
-  left: 4%;
-  right: 4%;
-  bottom: 2px;
-  height: 20%;
-  border-radius: 0 0 26px 26px;
-  background: linear-gradient(180deg, transparent, rgba(0,0,0,0.42));
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, transparent 0 2%, rgba(255,255,255,0.07) 2.3%, transparent 3.2%),
+    linear-gradient(180deg, rgba(255,255,255,0.12), transparent 18%, transparent 70%, rgba(0,0,0,0.34));
   pointer-events: none;
 }
 
 .keyboardPreview__glow {
   position: absolute;
-  inset: 12% 5% 16%;
-  border-radius: 18px;
-  background: linear-gradient(90deg, #28e866, #18d4eb 28%, #4277ff 52%, #a95cff 72%, #ff4d91);
-  filter: blur(20px);
-  opacity: 0.34;
+  left: 3%;
+  right: 3%;
+  bottom: -16px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #24f05f, #13d8d9 36%, #2776ff 58%, #a540ff 82%);
+  filter: blur(15px);
+  opacity: 0.38;
+  pointer-events: none;
 }
 
 .keyboardPreview__ledRail {
   position: absolute;
-  inset: calc(var(--case-pad-y) + 2px) calc(var(--case-pad-x) + 2px);
-  border-radius: 12px;
+  z-index: 1;
+  inset: calc(var(--case-pad-y) + 1px) calc(var(--case-pad-x) + 1px);
+  border-radius: 8px;
   background:
-    linear-gradient(90deg, rgba(37, 237, 94, 0.24), rgba(25, 212, 231, 0.28), rgba(73, 111, 255, 0.28), rgba(255, 65, 149, 0.22)),
-    repeating-linear-gradient(90deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 6.1%);
-  filter: saturate(1.1);
-  opacity: 0.72;
+    linear-gradient(90deg, rgba(28, 255, 76, 0.64), rgba(18, 216, 211, 0.72) 35%, rgba(32, 112, 255, 0.75) 59%, rgba(158, 54, 255, 0.7) 83%),
+    #05070b;
+  filter: saturate(1.15);
+  opacity: 0.58;
+  box-shadow:
+    0 0 14px rgba(37, 126, 255, 0.26),
+    inset 0 0 20px rgba(0,0,0,0.82);
 }
 
 .keyboardPreview.lighting-solid .keyboardPreview__glow,
@@ -111,6 +162,7 @@
   background: var(--keyboard-accent);
 }
 
+.keyboardPreview.lighting-off::before,
 .keyboardPreview.lighting-off .keyboardPreview__glow,
 .keyboardPreview.lighting-off .keyboardPreview__ledRail {
   opacity: 0;
@@ -130,46 +182,80 @@
   min-width: 0;
   min-height: 0;
   display: grid;
-  place-items: center;
-  padding: 0;
+  align-items: center;
+  justify-items: start;
+  padding: 0 clamp(5px, 0.55vw, 9px);
   margin: calc(var(--key-gap) / 2);
-  border: 1px solid color-mix(in srgb, var(--key-glow) 38%, rgba(255,255,255,0.14));
-  border-radius: clamp(6px, 0.85vw, 10px);
-  color: #f4f7ff;
+  border: 1px solid color-mix(in srgb, var(--key-glow) 32%, rgba(255,255,255,0.11));
+  border-radius: clamp(3px, 0.38vw, 6px);
+  color: #f3f6ff;
   background:
-    radial-gradient(circle at 34% 22%, rgba(255,255,255,0.19), transparent 28%),
-    linear-gradient(180deg, rgba(255,255,255,0.13), rgba(255,255,255,0.045) 39%, rgba(0,0,0,0.24)),
-    linear-gradient(180deg, #202432 0%, #121724 72%, #07090f 100%);
+    radial-gradient(circle at 28% 12%, rgba(255,255,255,0.18), transparent 22%),
+    linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.045) 28%, rgba(0,0,0,0.22) 72%),
+    linear-gradient(180deg, #222631 0%, #141923 55%, #07090e 100%);
   box-shadow:
-    0 0 8px color-mix(in srgb, var(--key-glow) 74%, transparent),
-    0 0 20px color-mix(in srgb, var(--key-glow) 45%, transparent),
-    0 clamp(4px, 0.55vw, 7px) 0 #05060a,
-    0 clamp(8px, 1vw, 15px) clamp(12px, 1.4vw, 22px) rgba(0,0,0,0.42),
-    inset 0 1px 0 rgba(255,255,255,0.17),
-    inset 0 -10px 17px rgba(0,0,0,0.46);
+    0 0 5px color-mix(in srgb, var(--key-glow) 60%, transparent),
+    0 0 11px color-mix(in srgb, var(--key-glow) 46%, transparent),
+    0 3px 0 #030407,
+    0 7px 13px rgba(0,0,0,0.66),
+    inset 0 1px 0 rgba(255,255,255,0.21),
+    inset 0 -7px 10px rgba(0,0,0,0.56);
   transform: translateY(0) translateZ(0);
-  transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease, color 150ms ease, filter 150ms ease;
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease, filter 140ms ease;
+}
+
+.keyboardPreview__key::before {
+  content: "";
+  position: absolute;
+  inset: 2px 3px 6px;
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02)),
+    rgba(255,255,255,0.012);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 -1px 0 rgba(0,0,0,0.48);
+  pointer-events: none;
+}
+
+.keyboardPreview__key::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: -3px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--key-glow);
+  filter: blur(2px);
+  opacity: 0.86;
+  pointer-events: none;
 }
 
 .keyboardPreview.lighting-off .keyboardPreview__key {
   border-color: rgba(255,255,255,0.1);
   box-shadow:
-    0 clamp(4px, 0.55vw, 7px) 0 #05060a,
-    0 clamp(8px, 1vw, 15px) clamp(12px, 1.4vw, 22px) rgba(0,0,0,0.42),
-    inset 0 1px 0 rgba(255,255,255,0.15),
-    inset 0 -10px 17px rgba(0,0,0,0.42);
+    0 3px 0 #030407,
+    0 7px 13px rgba(0,0,0,0.66),
+    inset 0 1px 0 rgba(255,255,255,0.18),
+    inset 0 -7px 10px rgba(0,0,0,0.52);
+}
+
+.keyboardPreview.lighting-off .keyboardPreview__key::after {
+  opacity: 0;
 }
 
 .keyboardPreview__key:hover {
-  transform: translateY(-4px) translateZ(8px);
-  border-color: color-mix(in srgb, var(--key-glow) 62%, white);
-  filter: brightness(1.08);
+  transform: translateY(-2px) translateZ(8px);
+  border-color: color-mix(in srgb, var(--key-glow) 62%, rgba(255,255,255,0.25));
+  filter: brightness(1.1);
   box-shadow:
-    0 0 24px color-mix(in srgb, var(--key-glow) 72%, transparent),
-    0 clamp(6px, 0.75vw, 10px) 0 #05060a,
-    0 clamp(12px, 1.4vw, 22px) clamp(16px, 1.9vw, 28px) rgba(0,0,0,0.52),
-    inset 0 1px 0 rgba(255,255,255,0.22),
-    inset 0 -10px 17px rgba(0,0,0,0.38);
+    0 0 8px color-mix(in srgb, var(--key-glow) 72%, transparent),
+    0 0 16px color-mix(in srgb, var(--key-glow) 52%, transparent),
+    0 5px 0 #030407,
+    0 12px 20px rgba(0,0,0,0.7),
+    inset 0 1px 0 rgba(255,255,255,0.24),
+    inset 0 -7px 10px rgba(0,0,0,0.46);
 }
 
 .keyboardPreview__key:focus-visible {
@@ -178,23 +264,23 @@
 }
 
 .keyboardPreview__key.selected {
-  color: white;
-  border-color: color-mix(in srgb, var(--keyboard-accent) 78%, white);
+  border-color: color-mix(in srgb, var(--keyboard-accent) 70%, white);
   box-shadow:
-    0 0 0 2px color-mix(in srgb, var(--keyboard-accent) 56%, transparent),
-    0 0 30px color-mix(in srgb, var(--keyboard-accent) 72%, transparent),
-    0 clamp(6px, 0.75vw, 10px) 0 #05060a,
-    0 16px 28px rgba(0,0,0,0.5),
-    inset 0 1px 0 rgba(255,255,255,0.24),
-    inset 0 -10px 17px rgba(0,0,0,0.38);
+    0 0 0 1px color-mix(in srgb, var(--keyboard-accent) 66%, transparent),
+    0 0 16px color-mix(in srgb, var(--keyboard-accent) 62%, transparent),
+    0 4px 0 #030407,
+    0 12px 20px rgba(0,0,0,0.7),
+    inset 0 1px 0 rgba(255,255,255,0.25),
+    inset 0 -7px 10px rgba(0,0,0,0.46);
 }
 
-.keyboardPreview__shine {
+.keyboardPreview__edge {
   position: absolute;
-  inset: 9% 11% auto 11%;
-  height: 40%;
+  inset: 1px;
   border-radius: inherit;
-  background: linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.035) 72%, transparent);
+  border-top: 1px solid rgba(255,255,255,0.15);
+  border-left: 1px solid rgba(255,255,255,0.06);
+  border-right: 1px solid rgba(0,0,0,0.48);
   pointer-events: none;
 }
 
@@ -202,27 +288,49 @@
   position: relative;
   z-index: 1;
   display: grid;
+  grid-auto-flow: row;
   gap: 1px;
-  justify-items: center;
-  max-width: 92%;
+  justify-items: start;
+  max-width: 100%;
   overflow: hidden;
-  font-size: clamp(8px, 0.78vw, 12px);
-  font-weight: 780;
+  font-size: clamp(7px, 0.58vw, 10px);
+  font-weight: 760;
   line-height: 1;
-  text-align: center;
+  text-align: left;
   text-overflow: ellipsis;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.74);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.86);
   white-space: nowrap;
+  letter-spacing: 0;
 }
 
 .keyboardPreview__label small {
-  font-size: 0.78em;
-  color: rgba(255,255,255,0.74);
+  font-size: 0.9em;
+  color: rgba(255,255,255,0.83);
 }
 
-.keyboardPreview__key.modifier .keyboardPreview__label,
+.keyboardPreview__key.normal .keyboardPreview__label {
+  font-size: clamp(10px, 0.9vw, 15px);
+  justify-items: center;
+  width: 100%;
+}
+
+.keyboardPreview__key.normal .keyboardPreview__label small {
+  font-size: 0.62em;
+}
+
+.keyboardPreview__key.nav {
+  justify-items: center;
+  padding-inline: 3px;
+}
+
 .keyboardPreview__key.nav .keyboardPreview__label {
-  font-size: clamp(6.5px, 0.68vw, 10px);
+  justify-items: center;
+  text-align: center;
+  font-size: clamp(6px, 0.52vw, 8px);
+}
+
+.keyboardPreview__key[data-key-id*="arrow"] .keyboardPreview__label {
+  font-size: clamp(13px, 1vw, 18px);
 }
 
 .keyboardPreview__key.space .keyboardPreview__label {
@@ -231,28 +339,38 @@
 
 @media (max-width: 980px) {
   .keyboardPreview {
-    --case-pad-x: clamp(10px, 1.8vw, 18px);
-    --case-pad-y: clamp(10px, 1.6vw, 18px);
-    --key-gap: 4px;
+    --case-pad-x: clamp(9px, 1.6vw, 14px);
+    --case-pad-y: clamp(8px, 1.3vw, 12px);
+    --key-gap: 3px;
     padding-inline: 8px;
   }
 
   .keyboardPreview__handle {
     display: none;
   }
+
+  .keyboardPreview__label {
+    font-size: clamp(6px, 0.9vw, 8px);
+  }
 }
 
 @media (max-width: 620px) {
   .keyboardPreview {
-    --key-gap: 3px;
-    padding: 10px 2px 18px;
+    --key-gap: 2px;
+    padding: 10px 2px 22px;
   }
 
   .keyboardPreview__case {
-    border-radius: 14px;
+    border-radius: 9px;
   }
 
-  .keyboardPreview__label {
-    font-size: clamp(5.8px, 1.5vw, 8px);
+  .keyboardPreview__key {
+    padding-inline: 3px;
+  }
+
+  .keyboardPreview__label,
+  .keyboardPreview__key.modifier .keyboardPreview__label,
+  .keyboardPreview__key.nav .keyboardPreview__label {
+    font-size: clamp(4.8px, 1.35vw, 7px);
   }
 }

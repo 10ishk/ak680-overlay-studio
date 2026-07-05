@@ -8,6 +8,7 @@ export type Ak680Key = {
   w: number;
   h: number;
   secondary?: string;
+  secondaryLabel?: string;
   type?: Ak680KeyType;
 };
 
@@ -28,10 +29,10 @@ export const ak680Layout: Ak680Key[] = [
   { id: "0", label: "0", secondary: ")", x: 10, y: 0, w: 1, h: 1 },
   { id: "minus", label: "-", secondary: "_", x: 11, y: 0, w: 1, h: 1 },
   { id: "equals", label: "=", secondary: "+", x: 12, y: 0, w: 1, h: 1 },
-  { id: "backspace", label: "Backspace", x: 13, y: 0, w: 2, h: 1, type: "modifier" },
+  { id: "backspace", label: "Backspace", secondaryLabel: "←", x: 13, y: 0, w: 2, h: 1, type: "modifier" },
   { id: "home", label: "Home", x: 15, y: 0, w: 1, h: 1, type: "nav" },
 
-  { id: "tab", label: "Tab", x: 0, y: 1, w: 1.35, h: 1, type: "modifier" },
+  { id: "tab", label: "Tab", secondaryLabel: "⇥", x: 0, y: 1, w: 1.35, h: 1, type: "modifier" },
   { id: "q", label: "Q", x: 1.35, y: 1, w: 1, h: 1 },
   { id: "w", label: "W", x: 2.35, y: 1, w: 1, h: 1 },
   { id: "e", label: "E", x: 3.35, y: 1, w: 1, h: 1 },
@@ -59,10 +60,10 @@ export const ak680Layout: Ak680Key[] = [
   { id: "l", label: "L", x: 9.65, y: 2, w: 1, h: 1 },
   { id: "semicolon", label: ";", secondary: ":", x: 10.65, y: 2, w: 1, h: 1 },
   { id: "quote", label: "'", secondary: "\"", x: 11.65, y: 2, w: 1, h: 1 },
-  { id: "enter", label: "Enter", x: 12.65, y: 2, w: 2.35, h: 1, type: "modifier" },
+  { id: "enter", label: "Enter", secondaryLabel: "↵", x: 12.65, y: 2, w: 2.35, h: 1, type: "modifier" },
   { id: "page-up", label: "PgUp", x: 15, y: 2, w: 1, h: 1, type: "nav" },
 
-  { id: "shift-left", label: "Shift", x: 0, y: 3, w: 2, h: 1, type: "modifier" },
+  { id: "shift-left", label: "Shift", secondaryLabel: "⇧", x: 0, y: 3, w: 2, h: 1, type: "modifier" },
   { id: "z", label: "Z", x: 2, y: 3, w: 1, h: 1 },
   { id: "x", label: "X", x: 3, y: 3, w: 1, h: 1 },
   { id: "c", label: "C", x: 4, y: 3, w: 1, h: 1 },
@@ -73,8 +74,8 @@ export const ak680Layout: Ak680Key[] = [
   { id: "comma", label: ",", secondary: "<", x: 9, y: 3, w: 1, h: 1 },
   { id: "period", label: ".", secondary: ">", x: 10, y: 3, w: 1, h: 1 },
   { id: "slash", label: "/", secondary: "?", x: 11, y: 3, w: 1, h: 1 },
-  { id: "shift-right", label: "Shift", x: 12, y: 3, w: 2, h: 1, type: "modifier" },
-  { id: "arrow-up", label: "Up", x: 14, y: 3, w: 1, h: 1, type: "nav" },
+  { id: "shift-right", label: "Shift", secondaryLabel: "⇧", x: 12, y: 3, w: 2, h: 1, type: "modifier" },
+  { id: "arrow-up", label: "↑", x: 14, y: 3, w: 1, h: 1, type: "nav" },
   { id: "page-down", label: "PgDn", x: 15, y: 3, w: 1, h: 1, type: "nav" },
 
   { id: "ctrl-left", label: "Ctrl", x: 0, y: 4, w: 1.15, h: 1, type: "modifier" },
@@ -84,7 +85,7 @@ export const ak680Layout: Ak680Key[] = [
   { id: "alt-right", label: "Alt", x: 10.05, y: 4, w: 1.15, h: 1, type: "modifier" },
   { id: "fn", label: "Fn", x: 11.2, y: 4, w: 1.15, h: 1, type: "modifier" },
   { id: "ctrl-right", label: "Ctrl", x: 12.35, y: 4, w: 1.15, h: 1, type: "modifier" },
-  { id: "arrow-left", label: "Left", x: 13.5, y: 4, w: 1, h: 1, type: "nav" },
-  { id: "arrow-down", label: "Down", x: 14.5, y: 4, w: 1, h: 1, type: "nav" },
-  { id: "arrow-right", label: "Right", x: 15.5, y: 4, w: 1, h: 1, type: "nav" }
+  { id: "arrow-left", label: "←", x: 13.5, y: 4, w: 1, h: 1, type: "nav" },
+  { id: "arrow-down", label: "↓", x: 14.5, y: 4, w: 1, h: 1, type: "nav" },
+  { id: "arrow-right", label: "→", x: 15.5, y: 4, w: 1, h: 1, type: "nav" }
 ];

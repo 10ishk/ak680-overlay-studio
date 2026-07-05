@@ -223,11 +223,15 @@ function App() {
     });
   }, []);
 
-  const sendCommand = useCallback((command: WebviewCommand): void => {
+  const sendCommand = useCallback((command: WebviewCommand): boolean => {
     try {
-      webviewRef.current?.send?.("ak680-command", command);
+      const send = webviewRef.current?.send;
+      if (!send) return false;
+      send.call(webviewRef.current, "ak680-command", command);
+      return true;
     } catch (error) {
       console.error("Failed to send official webview command", error);
+      return false;
     }
   }, []);
 
@@ -278,7 +282,33 @@ function App() {
         resolve(result);
       }, command.timeoutMs ?? 3500);
       pendingCommands.current.set(command.id, { page: options.page, action: options.action, targetOfficialPath: options.targetOfficialPath, startedAt, resolve, timeout });
-      window.setTimeout(() => sendCommand(command), 220);
+      window.setTimeout(() => {
+        if (sendCommand(command)) return;
+        window.clearTimeout(timeout);
+        pendingCommands.current.delete(command.id);
+        const result: WebviewCommandResult = {
+          id: command.id,
+          ok: false,
+          command: command.type,
+          commandId: command.id,
+          timestamp: new Date().toISOString(),
+          type: command.type,
+          success: false,
+          message: "Official webview is not ready for adapter commands",
+          route: options.targetOfficialPath
+        };
+        setLogState((state) => upsertOverlayAction(state, {
+          id: command.id,
+          timestamp: result.timestamp,
+          page: options.page,
+          action: options.action,
+          targetOfficialPath: options.targetOfficialPath,
+          status: "failure",
+          message: result.message
+        }));
+        setToast(result.message);
+        resolve(result);
+      }, 220);
     });
   }, [openOfficialPath, sendCommand]);
 

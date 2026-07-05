@@ -455,7 +455,7 @@ function AdvancedKeysPage({ api }: { api: OverlayApi }) {
         <section className="advancedActions">
           <ControlPanel title="Trigger Point" value={actuation} setValue={setActuation} onApply={async (value) => { await openModule(); await api.runOverlayAction({ page: "Advanced Keys", action: `${module} Trigger ${value}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "setRangeByNearbyLabel", text: module, nearText: "Trigger", value }); }} />
           <button className="panel actionPanel" onClick={async () => { await openModule(); await api.runOverlayAction({ page: "Advanced Keys", action: `Enable ${module}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "setToggleByLabel", text: "Enable", value: true }); }}><span>Toggle</span><strong>Enable</strong><p>Turns on the selected module if the official toggle is visible.</p></button>
-          <button className="panel actionPanel" onClick={async () => { await openModule(); await api.runOverlayAction({ page: "Advanced Keys", action: `Save ${module}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: "Save" }); }}><span>Commit</span><strong>Save</strong><p>Uses the official driver save action.</p></button>
+          <button className="panel actionPanel" onClick={async () => { await openModule(); await api.runOverlayAction({ page: "Advanced Keys", action: `Save ${module}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: "Save", nearText: module === "RS / Snappy" ? "RS" : module }); }}><span>Commit</span><strong>Save</strong><p>Uses the official driver save action.</p></button>
         </section>
       </div>
     </div>
@@ -470,7 +470,7 @@ function SocdPage({ api }: { api: OverlayApi }) {
       await api.runOverlayAction({ page: "SOCD", action: "Disable SOCD", targetOfficialPath: officialPaths.advancedKeys, commandType: "setToggleByLabel", text: "SOCD", value: false });
       return;
     }
-    await api.runOverlayAction({ page: "SOCD", action: `Set ${mode}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: mode });
+    await api.runOverlayAction({ page: "SOCD", action: `Set ${mode}`, targetOfficialPath: officialPaths.advancedKeys, commandType: "clickByText", text: mode, nearText: "SOCD" });
   };
   return (
     <div className="stack pageFade">
@@ -500,10 +500,10 @@ function KeymapPage({ api }: { api: OverlayApi }) {
     await api.runOverlayAction({ page: "Keymap", action: `Select ${selectedKey.label}`, targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: selectedKey.label });
     const inputResult = await api.runOverlayAction({ page: "Keymap", action: `Search assignment ${assignment}`, targetOfficialPath: officialPaths.keymap, commandType: "setInputValue", text: "Key", value: assignment });
     if (!inputResult.success) {
-      await api.runOverlayAction({ page: "Keymap", action: `Find assignment ${assignment}`, targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: assignment });
+      await api.runOverlayAction({ page: "Keymap", action: `Find assignment ${assignment}`, targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: assignment, nearText: "Key" });
       return;
     }
-    await api.runOverlayAction({ page: "Keymap", action: `Apply ${assignment} to ${selectedKey.label}`, targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: assignment });
+    await api.runOverlayAction({ page: "Keymap", action: `Apply ${assignment} to ${selectedKey.label}`, targetOfficialPath: officialPaths.keymap, commandType: "clickByText", text: assignment, nearText: "Key" });
   };
   return (
     <div className="stack pageFade">
@@ -533,20 +533,20 @@ function MacrosPage({ api }: { api: OverlayApi }) {
     await api.runOverlayAction({ page: "Macros", action: "Open Macro Manager", targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: "Macro" });
     const nameResult = await api.runOverlayAction({ page: "Macros", action: `Name macro ${slot}`, targetOfficialPath: officialPaths.macros, commandType: "setInputValue", text: "Name", value: slot });
     if (!nameResult.success) {
-      await api.runOverlayAction({ page: "Macros", action: "New Macro", targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: "New" });
+      await api.runOverlayAction({ page: "Macros", action: "New Macro", targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: "New", nearText: "Macro" });
     }
   };
   const recordMacro = async () => {
     await api.runOverlayAction({ page: "Macros", action: `Select macro ${slot}`, targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: slot });
-    await api.runOverlayAction({ page: "Macros", action: "Start recording", targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: "Record" });
+    await api.runOverlayAction({ page: "Macros", action: "Start recording", targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: "Record", nearText: slot });
   };
   const saveMacro = async () => {
-    await api.runOverlayAction({ page: "Macros", action: "Stop recording", targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: "Stop" });
-    await api.runOverlayAction({ page: "Macros", action: "Save macro", targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: "Save" });
+    await api.runOverlayAction({ page: "Macros", action: "Stop recording", targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: "Stop", nearText: slot });
+    await api.runOverlayAction({ page: "Macros", action: "Save macro", targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: "Save", nearText: slot });
   };
   const assignMacro = async () => {
     await api.runOverlayAction({ page: "Macros", action: `Select macro ${slot}`, targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: slot });
-    await api.runOverlayAction({ page: "Macros", action: `Assign macro to ${target}`, targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: target });
+    await api.runOverlayAction({ page: "Macros", action: `Assign macro to ${target}`, targetOfficialPath: officialPaths.macros, commandType: "clickByText", text: target, nearText: slot });
   };
   return (
     <div className="stack pageFade">

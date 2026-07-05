@@ -484,7 +484,7 @@ async function clickByText(command: WebviewCommand): Promise<CommandResult> {
   if (!text) return baseResult(command, false, "No text provided");
   let element: HTMLElement | null = null;
   await retryUntil(() => {
-    element = findClickableByText(text, command.tag);
+    element = findClickableByText(text, command.tag, command.nearText);
     return Boolean(element);
   }, command.timeoutMs);
   const target = element as HTMLElement | null;
@@ -669,14 +669,17 @@ function findInput(command: WebviewCommand, type?: string): HTMLInputElement | H
   return first instanceof HTMLInputElement || first instanceof HTMLTextAreaElement || first instanceof HTMLSelectElement ? first : null;
 }
 
-function findClickableByText(text: string, tag?: string): HTMLElement | null {
+function findClickableByText(text: string, tag?: string, nearText?: string): HTMLElement | null {
   const controls = tag ? `${tag}, [role='button'], [role='tab'], label` : "button, a, [role='button'], [role='tab'], label";
-  const controlMatch = bestTextCandidate(controls, text);
+  const scope = nearText ? scopeNearText(nearText) : undefined;
+  const controlMatch = bestTextCandidate(controls, text, scope);
   if (controlMatch) return controlMatch;
 
-  const textMatch = bestTextCandidate("button, a, [role='button'], [role='tab'], label, li, div, span", text);
-  if (!textMatch) return null;
-  return closestClickable(textMatch) ?? textMatch;
+  const textMatch = bestTextCandidate("button, a, [role='button'], [role='tab'], label, li, div, span", text, scope);
+  if (textMatch) return closestClickable(textMatch) ?? textMatch;
+
+  if (scope) return findClickableByText(text, tag);
+  return null;
 }
 
 async function clickLabeledSelectControl(text: string, timeoutMs = 3500): Promise<boolean> {
@@ -707,15 +710,20 @@ function findByText(text: string, tag?: string): HTMLElement | null {
   return candidates.find((item) => includesText(item, text, true)) as HTMLElement | undefined ?? candidates.find((item) => includesText(item, text)) as HTMLElement | undefined ?? null;
 }
 
-function bestTextCandidate(selector: string, text: string): HTMLElement | null {
+function bestTextCandidate(selector: string, text: string, root: ParentNode = document): HTMLElement | null {
   const needle = normalizeText(text);
   if (!needle) return null;
-  const candidates = Array.from(document.querySelectorAll(selector))
+  const candidates = Array.from(root.querySelectorAll(selector))
     .filter((item): item is HTMLElement => item instanceof HTMLElement && isVisibleEnabled(item) && includesText(item, text))
     .map((element) => ({ element, score: scoreTextCandidate(element, needle) }))
     .filter((item) => item.score > -Infinity)
     .sort((a, b) => b.score - a.score);
   return candidates[0]?.element ?? null;
+}
+
+function scopeNearText(text: string): Element | undefined {
+  const anchor = findByText(text);
+  return anchor?.closest("section, article, li, form, fieldset, .card, .item, .row, .panel, div") ?? undefined;
 }
 
 function scoreTextCandidate(element: HTMLElement, needle: string): number {
